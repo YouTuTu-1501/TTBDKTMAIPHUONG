@@ -1,0 +1,6 @@
+{
+  "name": "Quản lý Trung tâm",
+  "description": "Hệ thống quản lý trung tâm dạy thêm, lớp học, điểm danh và học lực.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
