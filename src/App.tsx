@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3 } from 'lucide-react';
+import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Student } from './types';
 import * as XLSX from 'xlsx';
@@ -21,19 +21,25 @@ const formatDob = (dob: string) => {
 };
 
 // --- MAIN APP COMPONENT ---
+export type UserRole = 'admin' | 'teacher' | 'student';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'classes' | 'attendance' | 'academics' | 'grades'>('classes');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [userRole, setUserRole] = useState<UserRole>('admin');
+  const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
   const [classTests, setClassTests] = useState<Record<string, string[]>>({
     '10A1': ['Kiểm tra 15p', 'Giữa kỳ'],
   });
   
   // Trạng thái lưu trữ danh sách học sinh (Mock dữ liệu ban đầu)
   const [students, setStudents] = useState<Student[]>([
-    { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [] },
+    { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [], grades: { 'Kiểm tra 15p': '4.5', 'Giữa kỳ': '5.0' } },
     { id: '2', name: 'Trần Thị B', dob: '2009-05-20', subject: 'Tin học', classRoom: '11B2', present: false, absencesCount: 0, tags: [] },
     { id: '3', name: 'Lê Văn C', dob: '2008-11-03', subject: 'GDKT-PL', classRoom: '12C3', present: false, absencesCount: 5, tags: ['Lộ trình lấy lại kiến thức căn bản'] },
+    { id: '4', name: 'Phạm Thị D', dob: '2010-08-22', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 0, tags: [], grades: { 'Kiểm tra 15p': '8.5', 'Giữa kỳ': '9.0' } },
+    { id: '5', name: 'Hoàng Văn E', dob: '2010-11-10', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 1, tags: [], grades: { 'Kiểm tra 15p': '6.0', 'Giữa kỳ': '7.0' } },
   ]);
 
   React.useEffect(() => {
@@ -90,7 +96,7 @@ export default function App() {
             active={activeTab === 'attendance'} 
             onClick={() => setActiveTab('attendance')} 
             icon={<CheckSquare className="w-5 h-5 mr-3" />} 
-            label="Điểm danh Check-in" 
+            label="Điểm danh" 
           />
           <MenuButton 
             active={activeTab === 'academics'} 
@@ -106,12 +112,36 @@ export default function App() {
           />
         </nav>
         <div className="p-5 mt-auto border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-600 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-white">A</div>
-            <div>
-              <p className="text-sm font-bold text-slate-700">Admin Master</p>
-              <p className="text-xs text-slate-500 font-medium">Quản trị viên</p>
+          <div className="flex flex-col gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md ring-2 ring-white ${
+                userRole === 'admin' ? 'bg-gradient-to-br from-fuchsia-500 to-violet-600' :
+                userRole === 'teacher' ? 'bg-gradient-to-br from-emerald-500 to-teal-600' :
+                'bg-gradient-to-br from-amber-500 to-orange-600'
+              }`}>
+                {userRole === 'admin' ? 'A' : userRole === 'teacher' ? 'GV' : 'HV'}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-700 capitalize">{userRole}</p>
+                <select 
+                  value={userRole}
+                  onChange={(e) => setUserRole(e.target.value as UserRole)}
+                  className="text-xs text-slate-500 font-medium bg-transparent border-none outline-none p-0 cursor-pointer w-full mt-0.5"
+                >
+                  <option value="admin">Quản trị viên (Admin)</option>
+                  <option value="teacher">Giáo viên</option>
+                  <option value="student">Học viên</option>
+                </select>
+              </div>
             </div>
+            {userRole === 'admin' && (
+              <button 
+                onClick={() => setShowAddAccountModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors border border-slate-200"
+              >
+                <Plus className="w-3.5 h-3.5" /> Thêm tài khoản
+              </button>
+            )}
           </div>
         </div>
       </aside>
@@ -122,7 +152,7 @@ export default function App() {
         <header className="md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-8 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 sticky top-0 z-10 gap-3 md:gap-0">
           <div className="flex items-center justify-between md:justify-start gap-4">
             <h2 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight">
-              {activeTab === 'classes' ? 'Quản lý Lớp học' : activeTab === 'attendance' ? 'Điểm danh Check-in' : activeTab === 'grades' ? 'Kết quả học tập' : 'Quản lý Học phí'}
+              {activeTab === 'classes' ? 'Quản lý Lớp học' : activeTab === 'attendance' ? 'Điểm danh' : activeTab === 'grades' ? 'Kết quả học tập' : 'Quản lý Học phí'}
             </h2>
             <span className="hidden md:flex px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm ring-1 ring-emerald-200/50 items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -174,10 +204,10 @@ export default function App() {
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto pb-24 md:pb-8">
           <div className="max-w-[1400px] mx-auto space-y-8">
-            {activeTab === 'classes' && <ClassManagement students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'attendance' && <Attendance students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'academics' && <Academics students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'grades' && <Grades students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
+            {activeTab === 'classes' && <ClassManagement userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
+            {activeTab === 'attendance' && <Attendance userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
+            {activeTab === 'academics' && <Academics userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
+            {activeTab === 'grades' && <Grades userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
           </div>
         </div>
       </main>
@@ -209,6 +239,54 @@ export default function App() {
           label="Kết quả" 
         />
       </nav>
+
+      {/* Add Account Modal */}
+      {showAddAccountModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Thêm tài khoản</h3>
+              <p className="text-slate-500 text-sm mb-4">Nhập thông tin tài khoản mới vào hệ thống.</p>
+              <div className="space-y-4 text-left">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tên tài khoản / Email</label>
+                  <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="VD: gv_anh@school.edu.vn" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
+                  <input type="password" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="********" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phân quyền</label>
+                  <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
+                    <option value="teacher">Giáo viên</option>
+                    <option value="student">Học viên</option>
+                    <option value="admin">Quản trị viên (Admin)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setShowAddAccountModal(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/50 font-medium transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  alert('Tạo tài khoản thành công!');
+                  setShowAddAccountModal(false);
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
+              >
+                Tạo tài khoản
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -252,7 +330,7 @@ function MenuButton({ active, onClick, icon, label }: { active: boolean, onClick
   );
 }
 
-function ClassManagement({ students, setStudents, selectedClass, searchQuery }: { students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
+function ClassManagement({ userRole, students, setStudents, selectedClass, searchQuery }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
   const [name, setName] = useState('');
   const [dob, setDob] = useState('');
   const [subject, setSubject] = useState('Toán');
@@ -271,6 +349,7 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
   // Hàm xử lý thêm học sinh mới
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
+    if (userRole === 'student') return;
     
     if (!name.trim()) return;
 
@@ -291,6 +370,7 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (userRole === 'student') return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -346,12 +426,14 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
   };
 
   const removeStudent = (id: string) => {
+    if (userRole === 'student') return;
     setStudents(students.filter(s => s.id !== id));
   };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Form Thêm Học Sinh */}
+      {userRole !== 'student' && (
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b border-slate-100 pb-4 gap-4">
           <h3 className="text-lg font-bold text-slate-800">Thêm học sinh</h3>
@@ -418,6 +500,7 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
           </button>
         </form>
       </div>
+      )}
 
       {/* Danh sách học sinh */}
       <section className="flex flex-col bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
@@ -440,7 +523,7 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
                   </>
                 )}
                 <th className="px-6 py-4">Môn học</th>
-                <th className="px-6 py-4 text-center">Xóa</th>
+                {userRole !== 'student' && <th className="px-6 py-4 text-center">Xóa</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -449,7 +532,16 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
               ) : displayList.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="px-6 py-4 text-xs font-mono text-slate-400/80">{student.id}</td>
-                  <td className="px-6 py-4 font-bold text-slate-700">{student.name}</td>
+                  <td className="px-6 py-4 font-bold text-slate-700">
+                    <div className="flex items-center gap-2">
+                      {student.name}
+                      {student.absencesCount && student.absencesCount > 3 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-red-700 bg-red-100 ring-1 ring-red-200" title="Cảnh báo vắng học quá 3 buổi">
+                          <AlertTriangle className="w-3 h-3" /> Cảnh báo vắng
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   {selectedClass === 'all' && (
                     <>
                       <td className="px-6 py-4 text-slate-500 font-medium">{formatDob(student.dob)}</td>
@@ -463,11 +555,13 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
                       {student.subject}
                     </span>
                   </td>
+                  {userRole !== 'student' && (
                   <td className="px-6 py-4 text-center">
                     <button onClick={() => removeStudent(student.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all">
                       <Trash2 className="w-4 h-4 mx-auto" />
                     </button>
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -478,7 +572,7 @@ function ClassManagement({ students, setStudents, selectedClass, searchQuery }: 
   );
 }
 
-function Attendance({ students, setStudents, selectedClass, searchQuery }: { students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
+function Attendance({ userRole, students, setStudents, selectedClass, searchQuery }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
@@ -488,6 +582,7 @@ function Attendance({ students, setStudents, selectedClass, searchQuery }: { stu
   });
 
   const toggleAttendance = (id: string) => {
+    if (userRole === 'student') return;
     setStudents(students.map(s => {
       if (s.id === id) {
         const isAbsentNow = !s.present;
@@ -503,6 +598,7 @@ function Attendance({ students, setStudents, selectedClass, searchQuery }: { stu
   };
 
   const updateAbsences = (id: string, delta: number) => {
+    if (userRole === 'student') return;
     setStudents(students.map(s => {
       if (s.id === id) {
         const current = s.absencesCount || 0;
@@ -512,8 +608,38 @@ function Attendance({ students, setStudents, selectedClass, searchQuery }: { stu
     }));
   };
 
+  const absentToday = displayList.filter(s => s.present);
+  const absentCount = absentToday.length;
+  const totalCount = displayList.length;
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white p-6 rounded-2xl border border-rose-100/60 shadow-[0_8px_30px_rgb(225,29,72,0.04)] flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 ring-1 ring-rose-100/50">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-slate-500 font-medium text-sm">Học sinh vắng hôm nay</h4>
+            <p className="text-2xl font-bold text-slate-800">
+              <span className="text-rose-600">{absentCount}</span> <span className="text-slate-400 text-lg font-medium">/ {totalCount}</span>
+            </p>
+          </div>
+        </div>
+        {absentCount > 0 && (
+          <div className="flex-1 bg-slate-50/50 p-4 rounded-xl border border-slate-100/60 w-full md:w-auto">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Danh sách vắng:</p>
+            <div className="flex flex-wrap gap-2">
+              {absentToday.map(s => (
+                <span key={s.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-rose-700 bg-white border border-rose-100/60 shadow-sm">
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <section className="flex flex-col bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <h3 className="font-bold text-slate-800">Đánh dấu vào ô để xác nhận vắng học</h3>
@@ -553,7 +679,14 @@ function Attendance({ students, setStudents, selectedClass, searchQuery }: { stu
                   </td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-400/80">{student.id}</td>
                   <td className={`px-6 py-4 font-bold ${student.present ? 'text-rose-700' : 'text-slate-700'}`}>
-                    {student.name}
+                    <div className="flex items-center gap-2">
+                      {student.name}
+                      {student.absencesCount && student.absencesCount > 3 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-red-700 bg-red-100 ring-1 ring-red-200" title="Cảnh báo vắng học quá 3 buổi">
+                          <AlertTriangle className="w-3 h-3" /> Cảnh báo vắng
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   {selectedClass === 'all' && (
                     <>
@@ -570,17 +703,21 @@ function Attendance({ students, setStudents, selectedClass, searchQuery }: { stu
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-3">
+                      {userRole !== 'student' && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); updateAbsences(student.id, -1); }}
                         className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors shadow-sm"
                       >-</button>
+                      )}
                       <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold shadow-sm ${student.absencesCount ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200' : 'bg-slate-100 text-slate-500'}`}>
                         {student.absencesCount || 0}
                       </span>
+                      {userRole !== 'student' && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); updateAbsences(student.id, 1); }}
                         className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors shadow-sm"
                       >+</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -593,7 +730,7 @@ function Attendance({ students, setStudents, selectedClass, searchQuery }: { stu
   );
 }
 
-function Academics({ students, setStudents, selectedClass, searchQuery }: { students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
+function Academics({ userRole, students, setStudents, selectedClass, searchQuery }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
@@ -608,6 +745,7 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
   ];
 
   const handleToggleTuition = (id: string, month: string, method: 'cash' | 'transfer') => {
+    if (userRole === 'student') return;
     setStudents(students.map(s => {
       if (s.id === id) {
         const currentTuition = s.tuition || {};
@@ -636,6 +774,7 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
   };
 
   const handleUpdateNote = (id: string, note: string) => {
+    if (userRole === 'student') return;
     setStudents(students.map(s => {
       if (s.id === id) {
         return { ...s, tuitionNote: note };
@@ -747,8 +886,17 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
                   return (
                   <tr key={student.id} className={`transition-colors group ${isCurrentMonthUnpaid ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-indigo-50/30'}`}>
                     <td className={`px-4 py-3 font-semibold text-slate-700 border-r border-slate-200 sticky left-0 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>
-                      {student.name}
-                      {isCurrentMonthUnpaid && <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-amber-500 align-middle" title="Chưa đóng học phí tháng này"></span>}
+                      <div className="flex items-center gap-2">
+                        {student.name}
+                        <div className="flex items-center gap-1">
+                          {isCurrentMonthUnpaid && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 align-middle" title="Chưa đóng học phí tháng này"></span>}
+                          {student.absencesCount && student.absencesCount > 3 ? (
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-600" title="Cảnh báo vắng học quá 3 buổi">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     </td>
                     {selectedClass === 'all' && (
                       <>
@@ -760,7 +908,8 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
                             placeholder="Nhập ghi chú..."
                             value={student.tuitionNote || ''}
                             onChange={(e) => handleUpdateNote(student.id, e.target.value)}
-                            className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm placeholder:text-slate-400"
+                            disabled={userRole === 'student'}
+                            className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm placeholder:text-slate-400 disabled:bg-transparent disabled:text-slate-500"
                           />
                         </td>
                       </>
@@ -772,7 +921,8 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
                           placeholder="Nhập ghi chú..."
                           value={student.tuitionNote || ''}
                           onChange={(e) => handleUpdateNote(student.id, e.target.value)}
-                          className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm placeholder:text-slate-400"
+                          disabled={userRole === 'student'}
+                          className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm placeholder:text-slate-400 disabled:bg-transparent disabled:text-slate-500"
                         />
                       </td>
                     )}
@@ -791,7 +941,8 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
                                 type="checkbox" 
                                 checked={isCash} 
                                 onChange={() => handleToggleTuition(student.id, m, 'cash')}
-                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer"
+                                disabled={userRole === 'student'}
+                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                               />
                             </div>
                             {isCash && date && (
@@ -806,7 +957,8 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
                                 type="checkbox" 
                                 checked={isTransfer} 
                                 onChange={() => handleToggleTuition(student.id, m, 'transfer')}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                                disabled={userRole === 'student'}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                               />
                             </div>
                             {isTransfer && date && (
@@ -831,7 +983,11 @@ function Academics({ students, setStudents, selectedClass, searchQuery }: { stud
 }
 
 
-function Grades({ students, setStudents, selectedClass, searchQuery, classTests, setClassTests }: { students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string, classTests: Record<string, string[]>, setClassTests: React.Dispatch<React.SetStateAction<Record<string, string[]>>> }) {
+function Grades({ userRole, students, setStudents, selectedClass, searchQuery, classTests, setClassTests }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string, classTests: Record<string, string[]>, setClassTests: React.Dispatch<React.SetStateAction<Record<string, string[]>>> }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTestName, setNewTestName] = useState('');
+  const [testToDelete, setTestToDelete] = useState<string | null>(null);
+
   if (selectedClass === 'all') {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100 shadow-sm text-slate-500">
@@ -853,27 +1009,42 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
   ];
 
   let hasChartData = false;
+  const studentAverages: { id: string; avg: number }[] = [];
+
   displayList.forEach(student => {
-    if (!tests.length || !student.grades) return;
-    let total = 0;
-    let count = 0;
-    tests.forEach(test => {
-      const scoreStr = student.grades?.[test];
-      const parsed = parseFloat((scoreStr || '').replace(',', '.'));
-      if (!isNaN(parsed)) {
-        total += parsed;
-        count++;
+    let avg = -1;
+    if (tests.length && student.grades) {
+      let total = 0;
+      let count = 0;
+      tests.forEach(test => {
+        const scoreStr = student.grades?.[test];
+        const parsed = parseFloat((scoreStr || '').replace(',', '.'));
+        if (!isNaN(parsed)) {
+          total += parsed;
+          count++;
+        }
+      });
+      if (count > 0) {
+        avg = total / count;
+        studentAverages.push({ id: student.id, avg });
+        hasChartData = true;
+        if (avg < 5) chartData[0].count++;
+        else if (avg < 6.5) chartData[1].count++;
+        else if (avg < 8) chartData[2].count++;
+        else chartData[3].count++;
       }
-    });
-    if (count > 0) {
-      hasChartData = true;
-      const avg = total / count;
-      if (avg < 5) chartData[0].count++;
-      else if (avg < 6.5) chartData[1].count++;
-      else if (avg < 8) chartData[2].count++;
-      else chartData[3].count++;
     }
   });
+
+  const sortedAverages = [...studentAverages].sort((a, b) => b.avg - a.avg);
+  const ranks: Record<string, number> = {};
+  let currentRank = 1;
+  for (let i = 0; i < sortedAverages.length; i++) {
+    if (i > 0 && sortedAverages[i].avg < sortedAverages[i-1].avg) {
+      currentRank = i + 1;
+    }
+    ranks[sortedAverages[i].id] = currentRank;
+  }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -889,17 +1060,20 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
     return null;
   };
 
-  const handleAddTest = () => {
-    const testName = prompt('Nhập tên bài kiểm tra mới (VD: Giữa kỳ 1):');
-    if (testName && testName.trim()) {
+  const handleConfirmAddTest = () => {
+    if (userRole === 'student') return;
+    if (newTestName && newTestName.trim()) {
       setClassTests(prev => ({
         ...prev,
-        [selectedClass]: [...(prev[selectedClass] || []), testName.trim()]
+        [selectedClass]: [...(prev[selectedClass] || []), newTestName.trim()]
       }));
+      setNewTestName('');
+      setShowAddModal(false);
     }
   };
 
   const handleUpdateGrade = (studentId: string, testName: string, value: string) => {
+    if (userRole === 'student') return;
     setStudents(prev => prev.map(s => {
       if (s.id === studentId) {
         return {
@@ -914,12 +1088,14 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
     }));
   };
 
-  const handleDeleteTest = (testName: string) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa bài kiểm tra "${testName}"?`)) {
+  const handleConfirmDelete = () => {
+    if (userRole === 'student') return;
+    if (testToDelete) {
       setClassTests(prev => ({
         ...prev,
-        [selectedClass]: prev[selectedClass].filter(t => t !== testName)
+        [selectedClass]: prev[selectedClass].filter(t => t !== testToDelete)
       }));
+      setTestToDelete(null);
     }
   };
 
@@ -955,12 +1131,14 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
             <span className="w-1.5 h-6 bg-indigo-500 rounded-full inline-block"></span>
             Kết quả học tập - Lớp {selectedClass}
           </h3>
+          {userRole !== 'student' && (
           <button 
-            onClick={handleAddTest}
+            onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl transition-all shadow-sm"
           >
             <Plus className="w-4 h-4" /> Thêm bài kiểm tra
           </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-max">
@@ -972,19 +1150,22 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
                   <th key={test} className="px-4 py-4 text-center border-r border-slate-100/60 relative group min-w-[120px]">
                     <div className="flex items-center justify-center gap-2">
                       {test}
-                      <button onClick={() => handleDeleteTest(test)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity">
+                      {userRole !== 'student' && (
+                      <button onClick={() => setTestToDelete(test)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity">
                         <Trash2 className="w-3 h-3" />
                       </button>
+                      )}
                     </div>
                   </th>
                 ))}
                 {tests.length === 0 && <th className="px-6 py-4 text-slate-400 font-medium">Chưa có bài kiểm tra nào</th>}
-                <th className="px-6 py-4 text-center font-bold text-indigo-700 w-32 border-l-2 border-slate-100/60 sticky right-0 bg-indigo-50/80 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">Trung bình</th>
+                <th className="px-6 py-4 text-center font-bold text-indigo-700 w-32 border-l-2 border-slate-100/60 sticky right-[96px] bg-indigo-50/90 backdrop-blur z-10">Trung bình</th>
+                <th className="px-4 py-4 text-center font-bold text-slate-700 w-24 sticky right-0 bg-slate-50/90 backdrop-blur z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">Xếp hạng</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {displayList.length === 0 ? (
-                <tr><td colSpan={tests.length + 3} className="p-12 text-center text-slate-400 font-medium">Không có học sinh nào.</td></tr>
+                <tr><td colSpan={tests.length + 4} className="p-12 text-center text-slate-400 font-medium">Không có học sinh nào.</td></tr>
               ) : displayList.map(student => {
                 let avg = -1;
                 if (tests.length && student.grades) {
@@ -1005,7 +1186,16 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
                 return (
                   <tr key={student.id} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-4 text-xs font-mono text-slate-400/80 border-r border-slate-100/60 sticky left-0 bg-white group-hover:bg-slate-50/80 z-10">{student.id}</td>
-                    <td className={`px-6 py-4 font-bold border-r-2 border-slate-100/60 sticky left-[64px] z-10 ${isBelowAvg ? 'bg-red-50 text-red-700 group-hover:bg-red-100/80' : 'bg-white text-slate-700 group-hover:bg-slate-50/80'}`}>{student.name}</td>
+                    <td className={`px-6 py-4 font-bold border-r-2 border-slate-100/60 sticky left-[64px] z-10 ${isBelowAvg ? 'bg-red-50 text-red-700 group-hover:bg-red-100/80' : 'bg-white text-slate-700 group-hover:bg-slate-50/80'}`}>
+                      <div className="flex items-center gap-2">
+                        {student.name}
+                        {student.absencesCount && student.absencesCount > 3 ? (
+                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-600" title="Cảnh báo vắng học quá 3 buổi">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
                     {tests.map(test => (
                       <td key={test} className="px-2 py-2 border-r border-slate-100/60">
                         <input 
@@ -1013,13 +1203,17 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
                           placeholder="-"
                           value={student.grades?.[test] || ''}
                           onChange={(e) => handleUpdateGrade(student.id, test, e.target.value)}
-                          className="w-full text-center bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold text-slate-700"
+                          disabled={userRole === 'student'}
+                          className="w-full text-center bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold text-slate-700 disabled:opacity-80 disabled:hover:border-transparent disabled:cursor-not-allowed"
                         />
                       </td>
                     ))}
                     {tests.length === 0 && <td></td>}
-                    <td className={`px-6 py-4 text-center font-bold sticky right-0 z-10 border-l-2 border-slate-100/60 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] ${isBelowAvg ? 'bg-red-50/80 text-red-700 group-hover:bg-red-100' : 'bg-indigo-50/30 text-indigo-700 group-hover:bg-indigo-50/80'}`}>
+                    <td className={`px-6 py-4 text-center font-bold sticky right-[96px] z-10 border-l-2 border-slate-100/60 ${isBelowAvg ? 'bg-red-50/90 text-red-700 backdrop-blur' : 'bg-indigo-50/90 text-indigo-700 backdrop-blur'}`}>
                       {avg !== -1 ? avg.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9])0$/, '$1') : '-'}
+                    </td>
+                    <td className={`px-4 py-4 text-center font-bold sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] ${isBelowAvg ? 'bg-red-50/90 text-red-700 backdrop-blur' : 'bg-slate-50/90 text-slate-700 backdrop-blur'}`}>
+                      {ranks[student.id] ? `#${ranks[student.id]}` : '-'}
                     </td>
                   </tr>
                 );
@@ -1028,6 +1222,73 @@ function Grades({ students, setStudents, selectedClass, searchQuery, classTests,
           </table>
         </div>
       </section>
+
+      {/* Add Test Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Thêm bài kiểm tra</h3>
+              <p className="text-slate-500 text-sm mb-4">Nhập tên bài kiểm tra mới cho lớp {selectedClass}</p>
+              <input
+                type="text"
+                autoFocus
+                placeholder="VD: Giữa kỳ 1, 15 phút lần 1..."
+                value={newTestName}
+                onChange={(e) => setNewTestName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddTest()}
+                className="w-full border-slate-200 rounded-xl px-4 py-3 border focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 bg-slate-50 outline-none transition-all"
+              />
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                onClick={() => { setShowAddModal(false); setNewTestName(''); }}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/50 font-medium transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmAddTest}
+                disabled={!newTestName.trim()}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Thêm bài kiểm tra
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Test Confirm Modal */}
+      {testToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Xóa bài kiểm tra</h3>
+              <p className="text-slate-500 text-sm">
+                Bạn có chắc chắn muốn xóa bài kiểm tra <span className="font-bold text-slate-700">"{testToDelete}"</span>? Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-center gap-3">
+              <button
+                onClick={() => setTestToDelete(null)}
+                className="flex-1 px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/50 font-medium transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors shadow-sm shadow-red-200"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
