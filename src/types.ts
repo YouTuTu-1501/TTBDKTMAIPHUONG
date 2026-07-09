@@ -9,4 +9,5 @@ export interface Student {
   tags: string[];
   tuition?: Record<string, { method: 'cash' | 'transfer', date: string }>;
   tuitionNote?: string;
+  grades?: Record<string, string>;
 }
