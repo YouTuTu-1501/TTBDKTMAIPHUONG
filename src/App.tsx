@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle, LayoutDashboard, Bell, Mail } from 'lucide-react';
+import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle, LayoutDashboard, Bell, Mail, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { Student } from './types';
 import * as XLSX from 'xlsx';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
+import { Schedule } from './components/Schedule';
 
 const formatDob = (dob: string) => {
   if (!dob) return '---';
@@ -26,7 +27,7 @@ const formatDob = (dob: string) => {
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'attendance' | 'academics' | 'grades'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'attendance' | 'academics' | 'grades' | 'schedule'>('dashboard');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [userRole, setUserRole] = useState<UserRole>('admin');
@@ -170,6 +171,12 @@ export default function App() {
             icon={<BookOpen className="w-5 h-5 mr-3" />} 
             label="Kết quả học tập" 
           />
+          <MenuButton 
+            active={activeTab === 'schedule'} 
+            onClick={() => setActiveTab('schedule')} 
+            icon={<Calendar className="w-5 h-5 mr-3" />} 
+            label="Thời khoá biểu" 
+          />
         </nav>
         <div className="p-5 mt-auto border-t border-slate-100 bg-slate-50/50">
           <div className="flex flex-col gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
@@ -212,7 +219,7 @@ export default function App() {
         <header className="md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-8 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 sticky top-0 z-10 gap-3 md:gap-0">
           <div className="flex items-center justify-between md:justify-start gap-4">
             <h2 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight">
-              {activeTab === 'dashboard' ? 'Tổng quan' : activeTab === 'classes' ? 'Quản lý Lớp học' : activeTab === 'attendance' ? 'Điểm danh' : activeTab === 'grades' ? 'Kết quả học tập' : 'Quản lý Học phí'}
+              {activeTab === 'dashboard' ? 'Tổng quan' : activeTab === 'classes' ? 'Quản lý Lớp học' : activeTab === 'attendance' ? 'Điểm danh' : activeTab === 'grades' ? 'Kết quả học tập' : activeTab === 'schedule' ? 'Thời khoá biểu' : 'Quản lý Học phí'}
             </h2>
             <span className="hidden md:flex px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm ring-1 ring-emerald-200/50 items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -269,6 +276,7 @@ export default function App() {
             {activeTab === 'attendance' && <Attendance userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
             {activeTab === 'academics' && <Academics userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
             {activeTab === 'grades' && <Grades userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
+            {activeTab === 'schedule' && <Schedule />}
           </div>
         </div>
       </main>
@@ -304,6 +312,12 @@ export default function App() {
           onClick={() => setActiveTab('grades')} 
           icon={<BookOpen className="w-5 h-5" />} 
           label="Kết quả" 
+        />
+        <MobileTabButton 
+          active={activeTab === 'schedule'} 
+          onClick={() => setActiveTab('schedule')} 
+          icon={<Calendar className="w-5 h-5" />} 
+          label="Lịch học" 
         />
       </nav>
 
