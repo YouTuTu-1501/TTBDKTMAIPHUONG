@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle, LayoutDashboard, Bell, Mail } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { Student } from './types';
 import * as XLSX from 'xlsx';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from './lib/firebase';
 
 const formatDob = (dob: string) => {
   if (!dob) return '---';
@@ -24,41 +26,67 @@ const formatDob = (dob: string) => {
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'classes' | 'attendance' | 'academics' | 'grades'>('classes');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'attendance' | 'academics' | 'grades'>('dashboard');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [userRole, setUserRole] = useState<UserRole>('admin');
   const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
-  const [classTests, setClassTests] = useState<Record<string, string[]>>(() => {
-    const saved = localStorage.getItem('classTests');
-    if (saved) return JSON.parse(saved);
-    return {
-      '10A1': ['Kiểm tra 15p', 'Giữa kỳ'],
-    };
+  const [classTests, setClassTests] = useState<Record<string, string[]>>({
+    '10A1': ['Kiểm tra 15p', 'Giữa kỳ'],
   });
   
-  // Trạng thái lưu trữ danh sách học sinh (Mock dữ liệu ban đầu)
-  const [students, setStudents] = useState<Student[]>(() => {
-    const saved = localStorage.getItem('students');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [], grades: { 'Kiểm tra 15p': '4.5', 'Giữa kỳ': '5.0' } },
-      { id: '2', name: 'Trần Thị B', dob: '2009-05-20', subject: 'Tin học', classRoom: '11B2', present: false, absencesCount: 0, tags: [] },
-      { id: '3', name: 'Lê Văn C', dob: '2008-11-03', subject: 'GDKT-PL', classRoom: '12C3', present: false, absencesCount: 5, tags: ['Lộ trình lấy lại kiến thức căn bản'] },
-      { id: '4', name: 'Phạm Thị D', dob: '2010-08-22', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 0, tags: [], grades: { 'Kiểm tra 15p': '8.5', 'Giữa kỳ': '9.0' } },
-      { id: '5', name: 'Hoàng Văn E', dob: '2010-11-10', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 1, tags: [], grades: { 'Kiểm tra 15p': '6.0', 'Giữa kỳ': '7.0' } },
-    ];
-  });
+  // Trạng thái lưu trữ danh sách học sinh
+  const [students, setStudents] = useState<Student[]>([
+    { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [], grades: { 'Kiểm tra 15p': '4.5', 'Giữa kỳ': '5.0' } },
+    { id: '2', name: 'Trần Thị B', dob: '2009-05-20', subject: 'Tin học', classRoom: '11B2', present: false, absencesCount: 0, tags: [] },
+    { id: '3', name: 'Lê Văn C', dob: '2008-11-03', subject: 'GDKT-PL', classRoom: '12C3', present: false, absencesCount: 5, tags: ['Lộ trình lấy lại kiến thức căn bản'] },
+    { id: '4', name: 'Phạm Thị D', dob: '2010-08-22', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 0, tags: [], grades: { 'Kiểm tra 15p': '8.5', 'Giữa kỳ': '9.0' } },
+    { id: '5', name: 'Hoàng Văn E', dob: '2010-11-10', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 1, tags: [], grades: { 'Kiểm tra 15p': '6.0', 'Giữa kỳ': '7.0' } },
+  ]);
+
+  const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
+  const [emails, setEmails] = useState<{id: string, text: string, type: 'warning' | 'info'}[]>([]);
+
+  const sendSimulatedEmail = (studentName: string, subject: string, isWarning: boolean = false) => {
+    const newEmail = {
+      id: Date.now().toString() + Math.random(),
+      text: `Đã gửi email tới phụ huynh ${studentName}: ${subject}`,
+      type: isWarning ? 'warning' : 'info' as 'warning'|'info'
+    };
+    setEmails(prev => [...prev, newEmail]);
+    setTimeout(() => {
+      setEmails(prev => prev.filter(e => e.id !== newEmail.id));
+    }, 4000);
+  };
 
   React.useEffect(() => {
-    localStorage.setItem('students', JSON.stringify(students));
-  }, [students]);
+    const fetchData = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'appData', 'main'));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.students) setStudents(data.students);
+          if (data.classTests) setClassTests(data.classTests);
+        }
+      } catch (err) {
+        console.error('Error fetching data from Firebase', err);
+      } finally {
+        setIsFirebaseLoaded(true);
+      }
+    };
+    fetchData();
+  }, []);
 
   React.useEffect(() => {
-    localStorage.setItem('classTests', JSON.stringify(classTests));
-  }, [classTests]);
+    if (isFirebaseLoaded) {
+      setDoc(doc(db, 'appData', 'main'), { students, classTests }, { merge: true }).catch(err => {
+        console.error('Error saving data to Firebase', err);
+      });
+    }
+  }, [students, classTests, isFirebaseLoaded]);
 
   React.useEffect(() => {
+    if (!isFirebaseLoaded) return;
     const today = new Date().toISOString().split('T')[0];
     const lastReset = localStorage.getItem('lastAttendanceReset');
     if (lastReset !== today) {
@@ -75,12 +103,22 @@ export default function App() {
       }
     }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isFirebaseLoaded]);
 
   const uniqueClasses = Array.from(new Set(students.map(s => s.classRoom).filter(Boolean)));
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#F8FAFC] text-slate-800 font-sans overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="fixed bottom-20 md:bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        {emails.map(email => (
+          <div key={email.id} className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border animate-in slide-in-from-right-8 fade-in duration-300 ${
+            email.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          }`}>
+            <Mail className={`w-5 h-5 ${email.type === 'warning' ? 'text-amber-500' : 'text-emerald-500'}`} />
+            <span className="font-medium text-sm">{email.text}</span>
+          </div>
+        ))}
+      </div>
       {/* Sidebar Navigation (Desktop) */}
       <aside className="hidden md:flex w-[280px] bg-white flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] border-r border-slate-100 shrink-0 z-20">
         <div className="p-5">
@@ -102,6 +140,12 @@ export default function App() {
           </div>
         </div>
         <nav className="flex-1 px-4 space-y-1.5 mt-2">
+          <MenuButton 
+            active={activeTab === 'dashboard'} 
+            onClick={() => setActiveTab('dashboard')} 
+            icon={<LayoutDashboard className="w-5 h-5 mr-3" />} 
+            label="Tổng quan" 
+          />
           <MenuButton 
             active={activeTab === 'classes'} 
             onClick={() => setActiveTab('classes')} 
@@ -168,7 +212,7 @@ export default function App() {
         <header className="md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-8 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 sticky top-0 z-10 gap-3 md:gap-0">
           <div className="flex items-center justify-between md:justify-start gap-4">
             <h2 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight">
-              {activeTab === 'classes' ? 'Quản lý Lớp học' : activeTab === 'attendance' ? 'Điểm danh' : activeTab === 'grades' ? 'Kết quả học tập' : 'Quản lý Học phí'}
+              {activeTab === 'dashboard' ? 'Tổng quan' : activeTab === 'classes' ? 'Quản lý Lớp học' : activeTab === 'attendance' ? 'Điểm danh' : activeTab === 'grades' ? 'Kết quả học tập' : 'Quản lý Học phí'}
             </h2>
             <span className="hidden md:flex px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm ring-1 ring-emerald-200/50 items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -220,16 +264,23 @@ export default function App() {
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto pb-24 md:pb-8">
           <div className="max-w-[1400px] mx-auto space-y-8">
+            {activeTab === 'dashboard' && <Dashboard students={students} classTests={classTests} />}
             {activeTab === 'classes' && <ClassManagement userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'attendance' && <Attendance userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'academics' && <Academics userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
+            {activeTab === 'attendance' && <Attendance userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
+            {activeTab === 'academics' && <Academics userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
             {activeTab === 'grades' && <Grades userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
           </div>
         </div>
       </main>
 
       {/* Bottom Navigation for Mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex items-center justify-around z-30 px-2 py-2 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.02)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex items-center justify-around z-30 px-2 py-2 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.02)] overflow-x-auto">
+        <MobileTabButton 
+          active={activeTab === 'dashboard'} 
+          onClick={() => setActiveTab('dashboard')} 
+          icon={<LayoutDashboard className="w-5 h-5" />} 
+          label="Tổng quan" 
+        />
         <MobileTabButton 
           active={activeTab === 'classes'} 
           onClick={() => setActiveTab('classes')} 
@@ -343,6 +394,111 @@ function MenuButton({ active, onClick, icon, label }: { active: boolean, onClick
       </div>
       <span className="text-sm font-semibold ml-1">{label}</span>
     </button>
+  );
+}
+
+function Dashboard({ students, classTests }: { students: Student[], classTests: Record<string, string[]> }) {
+  const totalStudents = students.length;
+  const absentToday = students.filter(s => s.present).length;
+  
+  const currentMonthStr = new Date().toLocaleDateString('en-GB', { month: '2-digit', year: 'numeric' });
+  const unpaidCount = students.filter(s => !s.tuition?.[currentMonthStr]).length;
+
+  let excellent = 0, good = 0, average = 0, belowAverage = 0;
+  students.forEach(student => {
+    const tests = classTests[student.classRoom] || [];
+    let avg = -1;
+    if (tests.length && student.grades) {
+      let total = 0;
+      let count = 0;
+      tests.forEach(test => {
+        const scoreStr = student.grades?.[test];
+        const parsed = parseFloat((scoreStr || '').replace(',', '.'));
+        if (!isNaN(parsed)) {
+          total += parsed;
+          count++;
+        }
+      });
+      if (count > 0) avg = total / count;
+    }
+    if (avg !== -1) {
+      if (avg >= 9) excellent++;
+      else if (avg >= 8) good++;
+      else if (avg >= 5) average++;
+      else belowAverage++;
+    }
+  });
+
+  const chartData = [
+    { name: 'Giỏi (9-10)', count: excellent, color: '#34d399' },
+    { name: 'Khá (8-8.9)', count: good, color: '#60a5fa' },
+    { name: 'TB (5-7.9)', count: average, color: '#fbbf24' },
+    { name: 'Yếu (<5)', count: belowAverage, color: '#f87171' }
+  ].filter(item => item.count > 0);
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 text-indigo-600 mb-2">
+              <Users className="w-5 h-5" />
+              <h3 className="font-bold text-sm uppercase tracking-wider">Tổng học sinh</h3>
+            </div>
+            <p className="text-4xl font-bold text-slate-800">{totalStudents}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 text-rose-600 mb-2">
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="font-bold text-sm uppercase tracking-wider">Vắng hôm nay</h3>
+            </div>
+            <p className="text-4xl font-bold text-rose-600">{absentToday}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 text-amber-600 mb-2">
+              <Tag className="w-5 h-5" />
+              <h3 className="font-bold text-sm uppercase tracking-wider">Chưa đóng học phí</h3>
+            </div>
+            <p className="text-4xl font-bold text-amber-600">{unpaidCount}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <div className="flex items-center gap-3 mb-6">
+          <BarChart3 className="w-5 h-5 text-indigo-600" />
+          <h3 className="font-bold text-slate-800">Phân bổ điểm số trung bình toàn trung tâm</h3>
+        </div>
+        <div className="h-72 w-full">
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} dy={10} />
+                <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={40}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              Chưa có dữ liệu điểm số để thống kê.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -588,7 +744,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   );
 }
 
-function Attendance({ userRole, students, setStudents, selectedClass, searchQuery }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
+function Attendance({ userRole, students, setStudents, selectedClass, searchQuery, sendSimulatedEmail }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string, sendSimulatedEmail: (name: string, subject: string, isWarning?: boolean) => void }) {
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
@@ -597,16 +753,27 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
     return matchClass && matchSearch;
   });
 
+  const handleSendNotification = (e: React.MouseEvent, studentName: string, count: number) => {
+    e.stopPropagation();
+    sendSimulatedEmail(studentName, `Cảnh báo: Học sinh vắng quá ${count} buổi học`, true);
+  };
+
   const toggleAttendance = (id: string) => {
     if (userRole === 'student') return;
     setStudents(students.map(s => {
       if (s.id === id) {
         const isAbsentNow = !s.present;
         const currentCount = s.absencesCount || 0;
+        const newCount = isAbsentNow ? currentCount + 1 : Math.max(0, currentCount - 1);
+        
+        if (isAbsentNow && newCount > 3) {
+           sendSimulatedEmail(s.name, `Cảnh báo hệ thống: Học sinh đã vắng học ${newCount} buổi`, true);
+        }
+
         return { 
           ...s, 
           present: isAbsentNow,
-          absencesCount: isAbsentNow ? currentCount + 1 : Math.max(0, currentCount - 1)
+          absencesCount: newCount
         };
       }
       return s;
@@ -629,7 +796,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
   const totalCount = displayList.length;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <div className="bg-white p-6 rounded-2xl border border-rose-100/60 shadow-[0_8px_30px_rgb(225,29,72,0.04)] flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 ring-1 ring-rose-100/50">
@@ -675,6 +842,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
                 )}
                 <th className="px-6 py-3">Môn học</th>
                 <th className="px-6 py-3 w-32 text-center">Tổng vắng</th>
+                {userRole !== 'student' && <th className="px-6 py-3 w-32 text-center">Gửi thông báo</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -736,6 +904,21 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
                       )}
                     </div>
                   </td>
+                  {userRole !== 'student' && (
+                    <td className="px-6 py-4 text-center">
+                      {student.absencesCount && student.absencesCount > 3 ? (
+                        <button
+                          onClick={(e) => handleSendNotification(e, student.name, student.absencesCount || 0)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 ring-1 ring-rose-200 transition-colors whitespace-nowrap"
+                          title="Gửi thông báo cảnh báo vắng học"
+                        >
+                          <Bell className="w-3.5 h-3.5" /> Thông báo
+                        </button>
+                      ) : (
+                        <span className="text-slate-300 text-sm">-</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -746,7 +929,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
   );
 }
 
-function Academics({ userRole, students, setStudents, selectedClass, searchQuery }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string }) {
+function Academics({ userRole, students, setStudents, selectedClass, searchQuery, sendSimulatedEmail }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string, sendSimulatedEmail: (name: string, subject: string, isWarning?: boolean) => void }) {
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
@@ -806,6 +989,13 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
   const safeSelectedUnpaidMonth = months.includes(selectedUnpaidMonth) ? selectedUnpaidMonth : months[0];
   const unpaidStudentsList = displayList.filter(s => !s.tuition?.[safeSelectedUnpaidMonth]);
 
+  const handleBulkRemind = () => {
+    if (unpaidStudentsList.length === 0) return;
+    unpaidStudentsList.forEach(s => {
+      sendSimulatedEmail(s.name, `Nhắc nhở: Học phí tháng ${safeSelectedUnpaidMonth} chưa được thanh toán`, true);
+    });
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
@@ -827,8 +1017,18 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
               ))}
             </select>
           </div>
-          <div className="text-sm text-rose-600 bg-white px-3 py-1 rounded-full border border-rose-200/60 shadow-sm font-bold w-fit">
-            Số lượng: {unpaidStudentsList.length}
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-rose-600 bg-white px-3 py-1 rounded-full border border-rose-200/60 shadow-sm font-bold w-fit">
+              Số lượng: {unpaidStudentsList.length}
+            </div>
+            {userRole !== 'student' && unpaidStudentsList.length > 0 && (
+              <button
+                onClick={handleBulkRemind}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 shadow-sm transition-colors"
+              >
+                <Mail className="w-3.5 h-3.5" /> Nhắc nhở tất cả
+              </button>
+            )}
           </div>
         </div>
         {unpaidStudentsList.length > 0 ? (
@@ -1052,6 +1252,23 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
     }
   });
 
+  const trendData = tests.map(test => {
+    let total = 0;
+    let count = 0;
+    displayList.forEach(student => {
+      const scoreStr = student.grades?.[test];
+      const parsed = parseFloat((scoreStr || '').replace(',', '.'));
+      if (!isNaN(parsed)) {
+        total += parsed;
+        count++;
+      }
+    });
+    return {
+      name: test,
+      avgScore: count > 0 ? Number((total / count).toFixed(2)) : null
+    };
+  }).filter(d => d.avgScore !== null);
+
   const sortedAverages = [...studentAverages].sort((a, b) => b.avg - a.avg);
   const ranks: Record<string, number> = {};
   let currentRank = 1;
@@ -1118,27 +1335,47 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {hasChartData && (
-        <section className="bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
-          <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6">
-            <BarChart3 className="w-5 h-5 text-indigo-500" />
-            Phân bổ điểm trung bình lớp {selectedClass}
-          </h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={60}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section className="bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6">
+              <BarChart3 className="w-5 h-5 text-indigo-500" />
+              Phân bổ điểm trung bình lớp {selectedClass}
+            </h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6">
+              <BarChart3 className="w-5 h-5 text-indigo-500" />
+              Xu hướng điểm số
+            </h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                  <YAxis allowDecimals={true} domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} />
+                  <Tooltip cursor={{ stroke: '#f1f5f9', strokeWidth: 2 }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                  <Line type="monotone" dataKey="avgScore" name="Điểm TB" stroke="#6366f1" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </div>
       )}
 
       <section className="flex flex-col bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
