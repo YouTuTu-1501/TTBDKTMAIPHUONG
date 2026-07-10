@@ -29,18 +29,34 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [userRole, setUserRole] = useState<UserRole>('admin');
   const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
-  const [classTests, setClassTests] = useState<Record<string, string[]>>({
-    '10A1': ['Kiểm tra 15p', 'Giữa kỳ'],
+  const [classTests, setClassTests] = useState<Record<string, string[]>>(() => {
+    const saved = localStorage.getItem('classTests');
+    if (saved) return JSON.parse(saved);
+    return {
+      '10A1': ['Kiểm tra 15p', 'Giữa kỳ'],
+    };
   });
   
   // Trạng thái lưu trữ danh sách học sinh (Mock dữ liệu ban đầu)
-  const [students, setStudents] = useState<Student[]>([
-    { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [], grades: { 'Kiểm tra 15p': '4.5', 'Giữa kỳ': '5.0' } },
-    { id: '2', name: 'Trần Thị B', dob: '2009-05-20', subject: 'Tin học', classRoom: '11B2', present: false, absencesCount: 0, tags: [] },
-    { id: '3', name: 'Lê Văn C', dob: '2008-11-03', subject: 'GDKT-PL', classRoom: '12C3', present: false, absencesCount: 5, tags: ['Lộ trình lấy lại kiến thức căn bản'] },
-    { id: '4', name: 'Phạm Thị D', dob: '2010-08-22', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 0, tags: [], grades: { 'Kiểm tra 15p': '8.5', 'Giữa kỳ': '9.0' } },
-    { id: '5', name: 'Hoàng Văn E', dob: '2010-11-10', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 1, tags: [], grades: { 'Kiểm tra 15p': '6.0', 'Giữa kỳ': '7.0' } },
-  ]);
+  const [students, setStudents] = useState<Student[]>(() => {
+    const saved = localStorage.getItem('students');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [], grades: { 'Kiểm tra 15p': '4.5', 'Giữa kỳ': '5.0' } },
+      { id: '2', name: 'Trần Thị B', dob: '2009-05-20', subject: 'Tin học', classRoom: '11B2', present: false, absencesCount: 0, tags: [] },
+      { id: '3', name: 'Lê Văn C', dob: '2008-11-03', subject: 'GDKT-PL', classRoom: '12C3', present: false, absencesCount: 5, tags: ['Lộ trình lấy lại kiến thức căn bản'] },
+      { id: '4', name: 'Phạm Thị D', dob: '2010-08-22', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 0, tags: [], grades: { 'Kiểm tra 15p': '8.5', 'Giữa kỳ': '9.0' } },
+      { id: '5', name: 'Hoàng Văn E', dob: '2010-11-10', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 1, tags: [], grades: { 'Kiểm tra 15p': '6.0', 'Giữa kỳ': '7.0' } },
+    ];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('students', JSON.stringify(students));
+  }, [students]);
+
+  React.useEffect(() => {
+    localStorage.setItem('classTests', JSON.stringify(classTests));
+  }, [classTests]);
 
   React.useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
