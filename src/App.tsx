@@ -276,7 +276,7 @@ export default function App() {
             {activeTab === 'attendance' && <Attendance userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
             {activeTab === 'academics' && <Academics userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
             {activeTab === 'grades' && <Grades userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
-            {activeTab === 'schedule' && <Schedule />}
+            {activeTab === 'schedule' && <Schedule userRole={userRole} />}
           </div>
         </div>
       </main>

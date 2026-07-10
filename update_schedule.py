@@ -1,4 +1,9 @@
-import React, { useState } from 'react';
+import re
+
+with open('src/components/Schedule.tsx', 'r') as f:
+    content = f.read()
+
+new_content = """import React, { useState } from 'react';
 import { Calendar, Edit2, Check, Plus, Trash2, X } from 'lucide-react';
 import { UserRole } from '../App';
 
@@ -226,3 +231,7 @@ export function Schedule({ userRole }: { userRole: UserRole }) {
     </div>
   );
 }
+"""
+
+with open('src/components/Schedule.tsx', 'w') as f:
+    f.write(new_content)
