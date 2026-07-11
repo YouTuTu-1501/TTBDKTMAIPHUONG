@@ -80,7 +80,9 @@ export default function App() {
 
   React.useEffect(() => {
     if (isFirebaseLoaded) {
-      setDoc(doc(db, 'appData', 'main'), { students, classTests }, { merge: true }).catch(err => {
+      // Dùng JSON.parse(JSON.stringify()) để loại bỏ các giá trị undefined, tránh lỗi Firebase
+      const dataToSave = JSON.parse(JSON.stringify({ students, classTests }));
+      setDoc(doc(db, 'appData', 'main'), dataToSave).catch(err => {
         console.error('Error saving data to Firebase', err);
       });
     }
