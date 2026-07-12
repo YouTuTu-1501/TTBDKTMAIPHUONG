@@ -33,6 +33,7 @@ export default function App() {
   const [userRole, setUserRole] = useState<UserRole>('admin');
   const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
   const [classTests, setClassTests] = useState<Record<string, string[]>>({});
+  const [lastAttendanceReset, setLastAttendanceReset] = useState<string>('');
   
   // Trạng thái lưu trữ danh sách học sinh
   const [students, setStudents] = useState<Student[]>([]);
@@ -60,6 +61,7 @@ export default function App() {
           const data = docSnap.data();
           if (data.students) setStudents(data.students);
           if (data.classTests) setClassTests(data.classTests);
+          if (data.lastAttendanceReset) setLastAttendanceReset(data.lastAttendanceReset);
         }
       } catch (err) {
         console.error('Error fetching data from Firebase', err);
@@ -73,32 +75,48 @@ export default function App() {
   React.useEffect(() => {
     if (isFirebaseLoaded) {
       // Dùng JSON.parse(JSON.stringify()) để loại bỏ các giá trị undefined, tránh lỗi Firebase
-      const dataToSave = JSON.parse(JSON.stringify({ students, classTests }));
+      const dataToSave = JSON.parse(JSON.stringify({ students, classTests, lastAttendanceReset }));
       setDoc(doc(db, 'appData', 'main'), dataToSave).catch(err => {
         console.error('Error saving data to Firebase', err);
       });
     }
-  }, [students, classTests, isFirebaseLoaded]);
+  }, [students, classTests, lastAttendanceReset, isFirebaseLoaded]);
 
   React.useEffect(() => {
     if (!isFirebaseLoaded) return;
-    const today = new Date().toISOString().split('T')[0];
-    const lastReset = localStorage.getItem('lastAttendanceReset');
-    if (lastReset !== today) {
+    
+    // Lấy ngày hiện tại theo giờ địa phương (VD: "2026-07-12")
+    const getLocalDay = () => {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    };
+
+    const today = getLocalDay();
+    
+    // Nếu chưa có dữ liệu reset ngày (lần đầu chạy hoặc dữ liệu cũ), set bằng hôm nay để không reset sai
+    if (!lastAttendanceReset) {
+      setLastAttendanceReset(today);
+      return;
+    }
+
+    if (lastAttendanceReset !== today) {
       setStudents(prev => prev.map(s => ({ ...s, present: false })));
-      localStorage.setItem('lastAttendanceReset', today);
+      setLastAttendanceReset(today);
     }
     
     // Check every minute if the day has changed while app is open
     const interval = setInterval(() => {
-      const currentDay = new Date().toISOString().split('T')[0];
-      if (localStorage.getItem('lastAttendanceReset') !== currentDay) {
-        setStudents(prev => prev.map(s => ({ ...s, present: false })));
-        localStorage.setItem('lastAttendanceReset', currentDay);
-      }
+      const currentDay = getLocalDay();
+      setLastAttendanceReset(prev => {
+        if (prev && prev !== currentDay) {
+          setStudents(current => current.map(s => ({ ...s, present: false })));
+          return currentDay;
+        }
+        return prev;
+      });
     }, 60000);
     return () => clearInterval(interval);
-  }, [isFirebaseLoaded]);
+  }, [isFirebaseLoaded, lastAttendanceReset]);
 
   const uniqueClasses = Array.from(new Set(students.map(s => s.classRoom).filter(Boolean)));
 
