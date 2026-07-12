@@ -32,18 +32,10 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [userRole, setUserRole] = useState<UserRole>('admin');
   const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
-  const [classTests, setClassTests] = useState<Record<string, string[]>>({
-    '10A1': ['Kiểm tra 15p', 'Giữa kỳ'],
-  });
+  const [classTests, setClassTests] = useState<Record<string, string[]>>({});
   
   // Trạng thái lưu trữ danh sách học sinh
-  const [students, setStudents] = useState<Student[]>([
-    { id: '1', name: 'Nguyễn Văn A', dob: '2010-01-15', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 2, tags: [], grades: { 'Kiểm tra 15p': '4.5', 'Giữa kỳ': '5.0' } },
-    { id: '2', name: 'Trần Thị B', dob: '2009-05-20', subject: 'Tin học', classRoom: '11B2', present: false, absencesCount: 0, tags: [] },
-    { id: '3', name: 'Lê Văn C', dob: '2008-11-03', subject: 'GDKT-PL', classRoom: '12C3', present: false, absencesCount: 5, tags: ['Lộ trình lấy lại kiến thức căn bản'] },
-    { id: '4', name: 'Phạm Thị D', dob: '2010-08-22', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 0, tags: [], grades: { 'Kiểm tra 15p': '8.5', 'Giữa kỳ': '9.0' } },
-    { id: '5', name: 'Hoàng Văn E', dob: '2010-11-10', subject: 'Toán', classRoom: '10A1', present: false, absencesCount: 1, tags: [], grades: { 'Kiểm tra 15p': '6.0', 'Giữa kỳ': '7.0' } },
-  ]);
+  const [students, setStudents] = useState<Student[]>([]);
 
   const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
   const [emails, setEmails] = useState<{id: string, text: string, type: 'warning' | 'info'}[]>([]);
