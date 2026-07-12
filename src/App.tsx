@@ -592,8 +592,8 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.id.toLowerCase().includes(searchQuery.toLowerCase());
+      String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchClass && matchSearch;
   });
   const targetClass = classRoom.trim() || 'Chưa xếp lớp';
@@ -651,10 +651,10 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
 
         return {
           id: `ST${String(Date.now() + index).slice(-4)}`,
-          name: row['Họ và tên'] || '',
+          name: String(row['Họ và tên'] || ''),
           dob: dobStr,
-          subject: row['Môn học'] || 'Toán',
-          classRoom: row['Lớp'] || targetClass,
+          subject: String(row['Môn học'] || 'Toán'),
+          classRoom: String(row['Lớp'] || targetClass),
           present: false,
           absencesCount: 0,
           tags: []
@@ -688,15 +688,15 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   const handleEditStudent = (e: React.FormEvent) => {
     e.preventDefault();
     if (userRole === 'student' || !editingStudent) return;
-    const safeName = (editName || '').trim();
+    const safeName = String(editName || '').trim();
     if (!safeName) return;
 
     setStudents(prev => prev.map(s => s.id === editingStudent.id ? {
       ...s,
       name: safeName,
-      dob: (editDob || '').trim(),
-      subject: editSubject || 'Toán',
-      classRoom: (editClassRoom || '').trim() || 'Chưa xếp lớp'
+      dob: String(editDob || '').trim(),
+      subject: String(editSubject || 'Toán'),
+      classRoom: String(editClassRoom || '').trim() || 'Chưa xếp lớp'
     } : s));
     setEditingStudent(null);
   };
@@ -974,8 +974,8 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.id.toLowerCase().includes(searchQuery.toLowerCase());
+      String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchClass && matchSearch;
   });
 
@@ -1159,8 +1159,8 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
   const displayList = students.filter(s => {
     const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
     const matchSearch = searchQuery === '' || 
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.id.toLowerCase().includes(searchQuery.toLowerCase());
+      String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchClass && matchSearch;
   });
 
@@ -1441,7 +1441,7 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
   }
 
   const tests = classTests[selectedClass] || [];
-  const displayList = students.filter(s => s.classRoom === selectedClass && (searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.toLowerCase().includes(searchQuery.toLowerCase())));
+  const displayList = students.filter(s => s.classRoom === selectedClass && (searchQuery === '' || String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase())));
 
   const chartData = [
     { name: 'Kém (<5)', count: 0, color: '#ef4444' },
