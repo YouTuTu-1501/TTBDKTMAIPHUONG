@@ -696,7 +696,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
       name: safeName,
       dob: String(editDob || '').trim(),
       subject: String(editSubject || 'Toán'),
-      classRoom: String(editClassRoom || '').trim() || 'Chưa xếp lớp'
+      classRoom: String(editClassRoom || '') || 'Chưa xếp lớp'
     } : s));
     setEditingStudent(null);
   };
