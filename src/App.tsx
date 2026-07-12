@@ -446,7 +446,7 @@ function Dashboard({ students, classTests }: { students: Student[], classTests: 
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Intro section */}
+      {/* Intro section - MP Edu Center */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 space-y-4">
