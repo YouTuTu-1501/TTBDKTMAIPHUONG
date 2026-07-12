@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle, LayoutDashboard, Bell, Mail, Calendar } from 'lucide-react';
+import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, Edit2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle, LayoutDashboard, Bell, Mail, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { Student } from './types';
 import * as XLSX from 'xlsx';
@@ -446,6 +446,52 @@ function Dashboard({ students, classTests }: { students: Student[], classTests: 
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Intro section */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2"></div>
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-indigo-600/20">
+              MP
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">Trung tâm bồi dưỡng kiến thức Mai Phượng</h2>
+              <p className="text-indigo-600 font-medium mt-1 italic">"Tâm sáng, trí cao"</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 text-slate-600">
+                <LayoutDashboard className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-slate-700">Cơ sở vật chất:</span> Đầy đủ hiện đại, phục vụ tốt cho quá trình dạy và học.</p>
+              </div>
+              <div className="flex items-start gap-3 text-slate-600">
+                <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p><span className="font-semibold text-slate-700">Địa chỉ:</span> Xóm 8, tổ dân phố 10 (tổ dân phố Lại Ân cũ), phường Dương Nỗ, thành phố Huế.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 text-slate-600">
+                <Users className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                <div>
+                  <p><span className="font-semibold text-slate-700">Đội ngũ giáo viên:</span> Giỏi chuyên môn, giàu nhiệt huyết, tận tâm.</p>
+                  <ul className="list-disc list-inside mt-2 space-y-1 text-sm pl-2">
+                    <li><span className="font-medium text-slate-700">Ths. Trần Thị Mai Phương</span> - Giảng dạy Vật Lý</li>
+                    <li><span className="font-medium text-slate-700">Ths. Trần Đình Phương</span> - Giảng dạy Toán</li>
+                    <li><span className="font-medium text-slate-700">Ths. Lê Thị Khánh Duyên</span> - Giảng dạy Toán</li>
+                  </ul>
+                  <p className="mt-2 text-sm font-medium text-indigo-600 bg-indigo-50 inline-block px-3 py-1 rounded-lg">Chuyên dạy các lớp từ 6 đến 12</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -515,6 +561,14 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   const [dob, setDob] = useState('');
   const [subject, setSubject] = useState('Toán');
   const [classRoom, setClassRoom] = useState('');
+  
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDob, setEditDob] = useState('');
+  const [editSubject, setEditSubject] = useState('Toán');
+  const [editClassRoom, setEditClassRoom] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const displayList = students.filter(s => {
@@ -605,9 +659,33 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
     XLSX.writeFile(wb, "Template_HocSinh.xlsx");
   };
 
-  const removeStudent = (id: string) => {
-    if (userRole === 'student') return;
-    setStudents(students.filter(s => s.id !== id));
+  const openEditModal = (student: Student) => {
+    setEditingStudent(student);
+    setEditName(student.name);
+    setEditDob(student.dob);
+    setEditSubject(student.subject);
+    setEditClassRoom(student.classRoom === 'Chưa xếp lớp' ? '' : student.classRoom);
+  };
+
+  const handleEditStudent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (userRole === 'student' || !editingStudent) return;
+    if (!editName.trim()) return;
+
+    setStudents(students.map(s => s.id === editingStudent.id ? {
+      ...s,
+      name: editName.trim(),
+      dob: editDob.trim(),
+      subject: editSubject,
+      classRoom: editClassRoom.trim() || 'Chưa xếp lớp'
+    } : s));
+    setEditingStudent(null);
+  };
+
+  const confirmRemoveStudent = () => {
+    if (userRole === 'student' || !studentToDelete) return;
+    setStudents(students.filter(s => s.id !== studentToDelete.id));
+    setStudentToDelete(null);
   };
 
   return (
@@ -737,9 +815,14 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
                   </td>
                   {userRole !== 'student' && (
                   <td className="px-6 py-4 text-center">
-                    <button onClick={() => removeStudent(student.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all">
-                      <Trash2 className="w-4 h-4 mx-auto" />
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => openEditModal(student)} className="text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-all" title="Chỉnh sửa thông tin">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setStudentToDelete(student)} className="text-slate-300 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all" title="Xóa học sinh">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                   )}
                 </tr>
@@ -748,6 +831,122 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
           </table>
         </div>
       </section>
+
+      {/* Edit Student Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800">Chỉnh sửa học sinh</h3>
+              <button onClick={() => setEditingStudent(null)} className="text-slate-400 hover:text-slate-600">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleEditStudent} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Họ và tên</label>
+                <input 
+                  type="text" 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                  required
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Ngày sinh</label>
+                  <input 
+                    type="date" 
+                    value={editDob}
+                    onChange={(e) => setEditDob(e.target.value)}
+                    className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-slate-700 transition-all"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Môn học</label>
+                  <select 
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-slate-700 transition-all bg-white"
+                  >
+                    <option value="Toán">Toán</option>
+                    <option value="Ngữ văn">Ngữ văn</option>
+                    <option value="Tiếng Anh">Tiếng Anh</option>
+                    <option value="Vật lý">Vật lý</option>
+                    <option value="Hóa học">Hóa học</option>
+                    <option value="Sinh học">Sinh học</option>
+                    <option value="Lịch sử">Lịch sử</option>
+                    <option value="Địa lý">Địa lý</option>
+                    <option value="GDKT-PL">GDKT-PL</option>
+                    <option value="Tin học">Tin học</option>
+                    <option value="Công nghệ">Công nghệ</option>
+                    <option value="Năng khiếu">Năng khiếu</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Lớp</label>
+                <input 
+                  type="text" 
+                  value={editClassRoom}
+                  onChange={(e) => setEditClassRoom(e.target.value)}
+                  placeholder="Để trống nếu chưa xếp lớp..."
+                  className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="flex-1 px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-medium transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+                >
+                  Lưu thay đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Student Confirm Modal */}
+      {studentToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Xóa học sinh</h3>
+              <p className="text-slate-500 text-sm">
+                Bạn có chắc chắn muốn xóa học sinh <span className="font-bold text-slate-700">{studentToDelete.name}</span>? Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-center gap-3">
+              <button
+                onClick={() => setStudentToDelete(null)}
+                className="flex-1 px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/50 font-medium transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={confirmRemoveStudent}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-colors shadow-sm shadow-red-600/20"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
