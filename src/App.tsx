@@ -615,7 +615,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
       tags: []
     };
 
-    setStudents([...students, newStudent]);
+    setStudents(prev => [...prev, newStudent]);
     setName(''); // Reset form
     setDob('');
     setClassRoom('');
@@ -679,30 +679,31 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
 
   const openEditModal = (student: Student) => {
     setEditingStudent(student);
-    setEditName(student.name);
-    setEditDob(student.dob);
-    setEditSubject(student.subject);
-    setEditClassRoom(student.classRoom === 'Chưa xếp lớp' ? '' : student.classRoom);
+    setEditName(student.name || '');
+    setEditDob(student.dob || '');
+    setEditSubject(student.subject || 'Toán');
+    setEditClassRoom(!student.classRoom || student.classRoom === 'Chưa xếp lớp' ? '' : student.classRoom);
   };
 
   const handleEditStudent = (e: React.FormEvent) => {
     e.preventDefault();
     if (userRole === 'student' || !editingStudent) return;
-    if (!editName.trim()) return;
+    const safeName = (editName || '').trim();
+    if (!safeName) return;
 
-    setStudents(students.map(s => s.id === editingStudent.id ? {
+    setStudents(prev => prev.map(s => s.id === editingStudent.id ? {
       ...s,
-      name: editName.trim(),
-      dob: editDob.trim(),
-      subject: editSubject,
-      classRoom: editClassRoom.trim() || 'Chưa xếp lớp'
+      name: safeName,
+      dob: (editDob || '').trim(),
+      subject: editSubject || 'Toán',
+      classRoom: (editClassRoom || '').trim() || 'Chưa xếp lớp'
     } : s));
     setEditingStudent(null);
   };
 
   const confirmRemoveStudent = () => {
     if (userRole === 'student' || !studentToDelete) return;
-    setStudents(students.filter(s => s.id !== studentToDelete.id));
+    setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
     setStudentToDelete(null);
   };
 
@@ -985,7 +986,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
 
   const toggleAttendance = (id: string) => {
     if (userRole === 'student') return;
-    setStudents(students.map(s => {
+    setStudents(prev => prev.map(s => {
       if (s.id === id) {
         const isAbsentNow = !s.present;
         const currentCount = s.absencesCount || 0;
@@ -1007,7 +1008,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
 
   const updateAbsences = (id: string, delta: number) => {
     if (userRole === 'student') return;
-    setStudents(students.map(s => {
+    setStudents(prev => prev.map(s => {
       if (s.id === id) {
         const current = s.absencesCount || 0;
         return { ...s, absencesCount: Math.max(0, current + delta) };
@@ -1170,7 +1171,7 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
 
   const handleToggleTuition = (id: string, month: string, method: 'cash' | 'transfer') => {
     if (userRole === 'student') return;
-    setStudents(students.map(s => {
+    setStudents(prev => prev.map(s => {
       if (s.id === id) {
         const currentTuition = s.tuition || {};
         const currentMonthData = currentTuition[month];
@@ -1199,7 +1200,7 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
 
   const handleUpdateNote = (id: string, note: string) => {
     if (userRole === 'student') return;
-    setStudents(students.map(s => {
+    setStudents(prev => prev.map(s => {
       if (s.id === id) {
         return { ...s, tuitionNote: note };
       }
