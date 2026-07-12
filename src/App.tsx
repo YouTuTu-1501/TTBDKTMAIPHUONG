@@ -29,6 +29,7 @@ export type UserRole = 'admin' | 'teacher' | 'student';
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'attendance' | 'academics' | 'grades' | 'schedule'>('dashboard');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [userRole, setUserRole] = useState<UserRole>('admin');
   const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
@@ -59,8 +60,19 @@ export default function App() {
         const docSnap = await getDoc(doc(db, 'appData', 'main'));
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.students) setStudents(data.students);
-          if (data.classTests) setClassTests(data.classTests);
+          if (data.students) setStudents(data.students.map((s: any) => ({ ...s, classRoom: String(s.classRoom || '').trim().replace(/\s+/g, ' ') || 'Chưa xếp lớp' })));
+          if (data.classTests) {
+            const normalizedClassTests: Record<string, string[]> = {};
+            for (const [key, value] of Object.entries(data.classTests)) {
+              const normKey = String(key || '').trim().replace(/\s+/g, ' ') || 'Chưa xếp lớp';
+              if (normalizedClassTests[normKey]) {
+                normalizedClassTests[normKey] = Array.from(new Set([...normalizedClassTests[normKey], ...(value as string[])]));
+              } else {
+                normalizedClassTests[normKey] = value as string[];
+              }
+            }
+            setClassTests(normalizedClassTests);
+          }
           if (data.lastAttendanceReset) setLastAttendanceReset(data.lastAttendanceReset);
         }
       } catch (err) {
@@ -118,7 +130,8 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isFirebaseLoaded, lastAttendanceReset]);
 
-  const uniqueClasses = Array.from(new Set(students.map(s => s.classRoom).filter(Boolean)));
+  const filteredStudentsBySubject = students.filter(s => selectedSubjectFilter === 'all' || s.subject === selectedSubjectFilter);
+  const uniqueClasses = Array.from(new Set(filteredStudentsBySubject.map(s => String(s.classRoom || '').trim().replace(/\s+/g, ' ')).filter(Boolean)));
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#F8FAFC] text-slate-800 font-sans overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
@@ -252,6 +265,25 @@ export default function App() {
           </div>
         </header>
 
+        
+        {/* SUBJECT TABS */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 px-4 md:px-8 py-3 flex items-center overflow-x-auto no-scrollbar shrink-0">
+          <div className="flex space-x-2">
+            {['all', 'Toán', 'Vật lý', 'Ngữ văn', 'Tiếng Anh'].map(subj => (
+              <button
+                key={subj}
+                onClick={() => { setSelectedSubjectFilter(subj); setSelectedClassFilter('all'); }}
+                className={`px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-200 ${
+                  selectedSubjectFilter === subj 
+                    ? 'bg-indigo-100 text-indigo-700 shadow-sm' 
+                    : 'bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                {subj === 'all' ? 'Tất cả môn' : subj}
+              </button>
+            ))}
+          </div>
+        </div>
         {/* CLASS TABS */}
         <div className="bg-white/60 backdrop-blur-sm border-b border-slate-200/60 px-4 md:px-8 py-3.5 flex items-center overflow-x-auto no-scrollbar shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
           <div className="flex space-x-2">
@@ -283,11 +315,11 @@ export default function App() {
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto pb-24 md:pb-8">
           <div className="max-w-[1400px] mx-auto space-y-8">
-            {activeTab === 'dashboard' && <Dashboard students={students} classTests={classTests} />}
-            {activeTab === 'classes' && <ClassManagement userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'attendance' && <Attendance userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
-            {activeTab === 'academics' && <Academics userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
-            {activeTab === 'grades' && <Grades userRole={userRole} students={students} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
+            {activeTab === 'dashboard' && <Dashboard students={filteredStudentsBySubject} classTests={classTests} />}
+            {activeTab === 'classes' && <ClassManagement userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
+            {activeTab === 'attendance' && <Attendance userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
+            {activeTab === 'academics' && <Academics userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
+            {activeTab === 'grades' && <Grades userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
             {activeTab === 'schedule' && <Schedule userRole={userRole} />}
           </div>
         </div>
@@ -428,7 +460,6 @@ function Dashboard({ students, classTests }: { students: Student[], classTests: 
   const absentToday = students.filter(s => s.present).length;
   
   const currentMonthStr = new Date().toLocaleDateString('en-GB', { month: '2-digit', year: 'numeric' });
-  const unpaidCount = students.filter(s => !s.tuition?.[currentMonthStr]).length;
 
   let excellent = 0, good = 0, average = 0, belowAverage = 0;
   students.forEach(student => {
@@ -510,7 +541,7 @@ function Dashboard({ students, classTests }: { students: Student[], classTests: 
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div className="relative z-10">
@@ -529,16 +560,6 @@ function Dashboard({ students, classTests }: { students: Student[], classTests: 
               <h3 className="font-bold text-sm uppercase tracking-wider">Vắng hôm nay</h3>
             </div>
             <p className="text-4xl font-bold text-rose-600">{absentToday}</p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 text-amber-600 mb-2">
-              <Tag className="w-5 h-5" />
-              <h3 className="font-bold text-sm uppercase tracking-wider">Chưa đóng học phí</h3>
-            </div>
-            <p className="text-4xl font-bold text-amber-600">{unpaidCount}</p>
           </div>
         </div>
       </div>
@@ -590,13 +611,13 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const displayList = students.filter(s => {
-    const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
+    const matchClass = selectedClass === 'all' || String(s.classRoom || '').trim().replace(/\s+/g, ' ') === selectedClass;
     const matchSearch = searchQuery === '' || 
       String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchClass && matchSearch;
   });
-  const targetClass = classRoom.trim() || 'Chưa xếp lớp';
+  const targetClass = classRoom.trim().replace(/\s+/g, ' ') || (selectedClass !== 'all' ? selectedClass : 'Chưa xếp lớp');
 
   // Hàm xử lý thêm học sinh mới
   const handleAddStudent = (e: React.FormEvent) => {
@@ -654,7 +675,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
           name: String(row['Họ và tên'] || ''),
           dob: dobStr,
           subject: String(row['Môn học'] || 'Toán'),
-          classRoom: String(row['Lớp'] || targetClass),
+          classRoom: String(row['Lớp'] || targetClass).trim().replace(/\s+/g, ' '),
           present: false,
           absencesCount: 0,
           tags: []
@@ -696,7 +717,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
       name: safeName,
       dob: String(editDob || '').trim(),
       subject: String(editSubject || 'Toán'),
-      classRoom: String(editClassRoom || '') || 'Chưa xếp lớp'
+      classRoom: String(editClassRoom || '').trim().replace(/\s+/g, ' ') || (selectedClass !== 'all' ? selectedClass : 'Chưa xếp lớp')
     } : s));
     setEditingStudent(null);
   };
@@ -763,9 +784,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
               onChange={(e) => setSubject(e.target.value)}
               className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none bg-white transition-all"
             >
-              <option value="Toán">Toán</option>
-              <option value="Tin học">Tin học</option>
-              <option value="GDKT-PL">GDKT-PL</option>
+              <option value="Toán">Toán</option>\n              <option value="Vật lý">Vật lý</option>\n              <option value="Ngữ văn">Ngữ văn</option>\n              <option value="Tiếng Anh">Tiếng Anh</option>
             </select>
           </div>
           <button 
@@ -892,17 +911,9 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
                     className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-slate-700 transition-all bg-white"
                   >
                     <option value="Toán">Toán</option>
+                    <option value="Vật lý">Vật lý</option>
                     <option value="Ngữ văn">Ngữ văn</option>
                     <option value="Tiếng Anh">Tiếng Anh</option>
-                    <option value="Vật lý">Vật lý</option>
-                    <option value="Hóa học">Hóa học</option>
-                    <option value="Sinh học">Sinh học</option>
-                    <option value="Lịch sử">Lịch sử</option>
-                    <option value="Địa lý">Địa lý</option>
-                    <option value="GDKT-PL">GDKT-PL</option>
-                    <option value="Tin học">Tin học</option>
-                    <option value="Công nghệ">Công nghệ</option>
-                    <option value="Năng khiếu">Năng khiếu</option>
                   </select>
                 </div>
               </div>
@@ -972,7 +983,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
 
 function Attendance({ userRole, students, setStudents, selectedClass, searchQuery, sendSimulatedEmail }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string, sendSimulatedEmail: (name: string, subject: string, isWarning?: boolean) => void }) {
   const displayList = students.filter(s => {
-    const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
+    const matchClass = selectedClass === 'all' || String(s.classRoom || '').trim().replace(/\s+/g, ' ') === selectedClass;
     const matchSearch = searchQuery === '' || 
       String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -1157,7 +1168,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
 
 function Academics({ userRole, students, setStudents, selectedClass, searchQuery, sendSimulatedEmail }: { userRole: UserRole, students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, selectedClass: string, searchQuery: string, sendSimulatedEmail: (name: string, subject: string, isWarning?: boolean) => void }) {
   const displayList = students.filter(s => {
-    const matchClass = selectedClass === 'all' || s.classRoom === selectedClass;
+    const matchClass = selectedClass === 'all' || String(s.classRoom || '').trim().replace(/\s+/g, ' ') === selectedClass;
     const matchSearch = searchQuery === '' || 
       String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -1441,7 +1452,7 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
   }
 
   const tests = classTests[selectedClass] || [];
-  const displayList = students.filter(s => s.classRoom === selectedClass && (searchQuery === '' || String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase())));
+  const displayList = students.filter(s => String(s.classRoom || '').trim().replace(/\s+/g, ' ') === selectedClass && (searchQuery === '' || String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || String(s.id || '').toLowerCase().includes(searchQuery.toLowerCase())));
 
   const chartData = [
     { name: 'Kém (<5)', count: 0, color: '#ef4444' },
