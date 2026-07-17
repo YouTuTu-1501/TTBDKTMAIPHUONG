@@ -52,6 +52,11 @@ export default function App() {
   const [lastAttendanceReset, setLastAttendanceReset] = useState<string>('');
   
   // Trạng thái lưu trữ danh sách học sinh
+  const [students, setStudents] = useState<Student[]>([]);
+
+  const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
+  const [emails, setEmails] = useState<{id: string, text: string, type: 'warning' | 'info'}[]>([]);
+
   const [usersList, setUsersList] = useState<any[]>([]);
   
   React.useEffect(() => {
@@ -78,10 +83,7 @@ export default function App() {
       }
     }
   };
-  const [students, setStudents] = useState<Student[]>([]);
-
-  const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
-  const [emails, setEmails] = useState<{id: string, text: string, type: 'warning' | 'info'}[]>([]);
+  
 
   const sendSimulatedEmail = (studentName: string, subject: string, isWarning: boolean = false) => {
     const newEmail = {
@@ -146,15 +148,7 @@ export default function App() {
     }
   };
 
-  if (loadingAuth) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
-  }
-  
-  if (!currentUser) {
-    return <Login />;
-  }
-
-React.useEffect(() => {
+  React.useEffect(() => {
     if (!currentUser) return;
     const fetchData = async () => {
       try {
@@ -183,7 +177,7 @@ React.useEffect(() => {
       }
     };
     fetchData();
-  }, []);
+  }, [currentUser]);
 
   React.useEffect(() => {
     if (isFirebaseLoaded) {
@@ -230,6 +224,16 @@ React.useEffect(() => {
     }, 60000);
     return () => clearInterval(interval);
   }, [isFirebaseLoaded, lastAttendanceReset]);
+
+  if (loadingAuth) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
+  }
+  
+  if (!currentUser) {
+    return <Login />;
+  }
+
+
 
   const filteredStudentsBySubject = students.filter(s => {
     if (selectedSubjectFilter !== 'all' && s.subject !== selectedSubjectFilter) return false;
