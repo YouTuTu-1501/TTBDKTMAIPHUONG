@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Users, CheckSquare, GraduationCap, Plus, Tag, Trash2, Edit2, CheckCircle2, Upload, Download, Search, BookOpen, BarChart3, AlertTriangle, LayoutDashboard, Bell, Mail, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { Student } from './types';
 import * as XLSX from 'xlsx';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './lib/firebase';
+import { db, auth, secondaryAuth } from './lib/firebase';
+import { onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
+import Login from './components/Login';
 import { Schedule } from './components/Schedule';
 
 const formatDob = (dob: string) => {
@@ -27,6 +30,18 @@ const formatDob = (dob: string) => {
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  
+  const [newAccEmail, setNewAccEmail] = useState('');
+  const [newAccPassword, setNewAccPassword] = useState('');
+  const [newAccRole, setNewAccRole] = useState<UserRole>('teacher');
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [newAccError, setNewAccError] = useState('');
+  const [newAccSuccess, setNewAccSuccess] = useState('');
+  
+
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'attendance' | 'academics' | 'grades' | 'schedule'>('dashboard');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
@@ -37,6 +52,32 @@ export default function App() {
   const [lastAttendanceReset, setLastAttendanceReset] = useState<string>('');
   
   // Trạng thái lưu trữ danh sách học sinh
+  const [usersList, setUsersList] = useState<any[]>([]);
+  
+  React.useEffect(() => {
+    if (userRole === 'admin' && showAddAccountModal) {
+      import('firebase/firestore').then(({ collection, getDocs }) => {
+        getDocs(collection(db, 'users')).then(snapshot => {
+          const list: any[] = [];
+          snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+          setUsersList(list);
+        });
+      });
+    }
+  }, [userRole, showAddAccountModal]);
+
+  const handleDeleteAccount = async (id: string) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản này?')) {
+      try {
+        const { deleteDoc, doc } = await import('firebase/firestore');
+        await deleteDoc(doc(db, 'users', id));
+        setUsersList(prev => prev.filter(u => u.id !== id));
+      } catch (err) {
+        console.error(err);
+        alert('Lỗi khi xóa tài khoản');
+      }
+    }
+  };
   const [students, setStudents] = useState<Student[]>([]);
 
   const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
@@ -54,7 +95,67 @@ export default function App() {
     }, 4000);
   };
 
-  React.useEffect(() => {
+  
+    React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data().role as UserRole);
+          } else {
+            setUserRole('student');
+          }
+          setCurrentUser(user);
+        } catch (err) {
+          console.error("Error fetching user role:", err);
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateAccount = async () => {
+    if (!newAccEmail || !newAccPassword) return;
+    setCreatingAccount(true);
+    setNewAccError('');
+    setNewAccSuccess('');
+    try {
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newAccEmail, newAccPassword);
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email: newAccEmail,
+        role: newAccRole,
+        createdAt: new Date().toISOString()
+      });
+      setNewAccSuccess('Tạo tài khoản thành công!');
+      setNewAccEmail('');
+      setNewAccPassword('');
+      setTimeout(() => {
+        setShowAddAccountModal(false);
+        setNewAccSuccess('');
+      }, 2000);
+    } catch (err: any) {
+      console.error(err);
+      setNewAccError(err.message || 'Có lỗi xảy ra.');
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
+
+  if (loadingAuth) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
+  }
+  
+  if (!currentUser) {
+    return <Login />;
+  }
+
+React.useEffect(() => {
+    if (!currentUser) return;
     const fetchData = async () => {
       try {
         const docSnap = await getDoc(doc(db, 'appData', 'main'));
@@ -130,7 +231,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isFirebaseLoaded, lastAttendanceReset]);
 
-  const filteredStudentsBySubject = students.filter(s => selectedSubjectFilter === 'all' || s.subject === selectedSubjectFilter);
+  const filteredStudentsBySubject = students.filter(s => {
+    if (selectedSubjectFilter !== 'all' && s.subject !== selectedSubjectFilter) return false;
+    if (userRole === 'student') {
+      return s.email && s.email.toLowerCase() === currentUser?.email?.toLowerCase();
+    }
+    return true;
+  });
   const uniqueClasses = Array.from(new Set(filteredStudentsBySubject.map(s => String(s.classRoom || '').trim().replace(/\s+/g, ' ')).filter(Boolean)));
 
   return (
@@ -215,15 +322,7 @@ export default function App() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-slate-700 capitalize">{userRole}</p>
-                <select 
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value as UserRole)}
-                  className="text-xs text-slate-500 font-medium bg-transparent border-none outline-none p-0 cursor-pointer w-full mt-0.5"
-                >
-                  <option value="admin">Quản trị viên (Admin)</option>
-                  <option value="teacher">Giáo viên</option>
-                  <option value="student">Học viên</option>
-                </select>
+                <button onClick={() => auth.signOut()} className="text-[11px] font-semibold text-slate-400 hover:text-red-500 transition-colors mt-0.5">Đăng xuất</button>
               </div>
             </div>
             {userRole === 'admin' && (
@@ -231,7 +330,7 @@ export default function App() {
                 onClick={() => setShowAddAccountModal(true)}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors border border-slate-200"
               >
-                <Plus className="w-3.5 h-3.5" /> Thêm tài khoản
+                <Plus className="w-3.5 h-3.5" /> Quản lý tài khoản
               </button>
             )}
           </div>
@@ -315,12 +414,22 @@ export default function App() {
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto pb-24 md:pb-8">
           <div className="max-w-[1400px] mx-auto space-y-8">
-            {activeTab === 'dashboard' && <Dashboard students={filteredStudentsBySubject} classTests={classTests} />}
-            {activeTab === 'classes' && <ClassManagement userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
-            {activeTab === 'attendance' && <Attendance userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
-            {activeTab === 'academics' && <Academics userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
-            {activeTab === 'grades' && <Grades userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
-            {activeTab === 'schedule' && <Schedule userRole={userRole} />}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                {activeTab === 'dashboard' && <Dashboard students={filteredStudentsBySubject} classTests={classTests} />}
+                {activeTab === 'classes' && <ClassManagement userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} />}
+                {activeTab === 'attendance' && <Attendance userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
+                {activeTab === 'academics' && <Academics userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
+                {activeTab === 'grades' && <Grades userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
+                {activeTab === 'schedule' && <Schedule userRole={userRole} />}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </main>
@@ -370,43 +479,61 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Thêm tài khoản</h3>
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-xl font-bold text-slate-800">Quản lý tài khoản</h3>
+                <button onClick={() => setShowAddAccountModal(false)} className="text-slate-400 hover:text-slate-600">
+                  X
+                </button>
+              </div>
               <p className="text-slate-500 text-sm mb-4">Nhập thông tin tài khoản mới vào hệ thống.</p>
+              
+              {newAccError && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">{newAccError}</div>}
+              {newAccSuccess && <div className="mb-4 p-3 bg-emerald-50 text-emerald-600 rounded-xl text-sm border border-emerald-100">{newAccSuccess}</div>}
+              
               <div className="space-y-4 text-left">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tên tài khoản / Email</label>
-                  <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="VD: gv_anh@school.edu.vn" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input type="email" value={newAccEmail} onChange={(e) => setNewAccEmail(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="VD: gv_anh@school.edu.vn" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
-                  <input type="password" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="********" />
+                  <input type="password" value={newAccPassword} onChange={(e) => setNewAccPassword(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="********" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Phân quyền</label>
-                  <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
+                  <select value={newAccRole} onChange={(e) => setNewAccRole(e.target.value as UserRole)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
                     <option value="teacher">Giáo viên</option>
                     <option value="student">Học viên</option>
                     <option value="admin">Quản trị viên (Admin)</option>
                   </select>
                 </div>
+                <button 
+                  onClick={handleCreateAccount}
+                  disabled={creatingAccount}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition-all disabled:opacity-70 mt-4"
+                >
+                  {creatingAccount ? 'Đang tạo...' : 'Tạo tài khoản'}
+                </button>
+
+              <div className="mt-8 border-t border-slate-100 pt-6">
+                <h4 className="font-bold text-slate-800 mb-4">Danh sách tài khoản</h4>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {usersList.map(u => (
+                    <div key={u.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div>
+                        <p className="font-semibold text-sm text-slate-700">{u.email}</p>
+                        <p className="text-xs text-slate-500 capitalize">{u.role}</p>
+                      </div>
+                      <button onClick={() => handleDeleteAccount(u.id)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {usersList.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Đang tải...</p>}
+                </div>
               </div>
-            </div>
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-              <button
-                onClick={() => setShowAddAccountModal(false)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/50 font-medium transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  alert('Tạo tài khoản thành công!');
-                  setShowAddAccountModal(false);
-                }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
-              >
-                Tạo tài khoản
-              </button>
+
+              </div>
             </div>
           </div>
         </div>
@@ -494,7 +621,7 @@ function Dashboard({ students, classTests }: { students: Student[], classTests: 
   ].filter(item => item.count > 0);
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 ">
       {/* Intro section - MP Edu Center */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2"></div>
@@ -600,6 +727,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   const [dob, setDob] = useState('');
   const [subject, setSubject] = useState('Toán');
   const [classRoom, setClassRoom] = useState('');
+  const [email, setEmail] = useState('');
   
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -607,6 +735,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   const [editDob, setEditDob] = useState('');
   const [editSubject, setEditSubject] = useState('Toán');
   const [editClassRoom, setEditClassRoom] = useState('');
+  const [editEmail, setEditEmail] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -622,7 +751,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   // Hàm xử lý thêm học sinh mới
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole === 'student') return;
+    if (userRole !== 'admin') return;
     
     if (!name.trim()) return;
 
@@ -632,6 +761,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
       dob: dob.trim(),
       subject,
       classRoom: targetClass,
+      email: email.trim() || undefined,
       present: false, // Mặc định chưa điểm danh
       tags: []
     };
@@ -640,6 +770,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
     setName(''); // Reset form
     setDob('');
     setClassRoom('');
+    setEmail('');
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -729,9 +860,9 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 ">
       {/* Form Thêm Học Sinh */}
-      {userRole !== 'student' && (
+      {userRole === 'admin' && (
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b border-slate-100 pb-4 gap-4">
           <h3 className="text-lg font-bold text-slate-800">Thêm học sinh</h3>
@@ -757,6 +888,16 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
             />
           </div>
           <div className="flex gap-4 w-full md:w-auto">
+            <div className="w-full md:w-48 space-y-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Email học sinh</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Dùng để đăng nhập"
+                className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+              />
+            </div>
             <div className="flex-1 md:w-40 space-y-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Ngày sinh</label>
               <input 
@@ -819,7 +960,7 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
                   </>
                 )}
                 <th className="px-6 py-4">Môn học</th>
-                {userRole !== 'student' && <th className="px-6 py-4 text-center">Xóa</th>}
+                {userRole === 'admin' && <th className="px-6 py-4 text-center">Xóa</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -917,6 +1058,18 @@ function ClassManagement({ userRole, students, setStudents, selectedClass, searc
                   </select>
                 </div>
               </div>
+              
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Email</label>
+                <input 
+                  type="email" 
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full border-slate-200 border rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-slate-700 transition-all"
+                  placeholder="Dùng để đăng nhập"
+                />
+              </div>
+
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Lớp</label>
                 <input 
@@ -1033,7 +1186,7 @@ function Attendance({ userRole, students, setStudents, selectedClass, searchQuer
   const totalCount = displayList.length;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+    <div className="space-y-6  relative">
       <div className="bg-white p-6 rounded-2xl border border-rose-100/60 shadow-[0_8px_30px_rgb(225,29,72,0.04)] flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 ring-1 ring-rose-100/50">
@@ -1234,7 +1387,7 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 ">
       
       {/* Thống kê học phí chưa đóng */}
       <section className="bg-white rounded-2xl border border-rose-100/60 shadow-[0_8px_30px_rgb(225,29,72,0.04)] overflow-hidden">
@@ -1570,7 +1723,7 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 ">
       {hasChartData && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <section className="bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">

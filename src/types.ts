@@ -6,6 +6,7 @@ export interface Student {
   classRoom: string;
   present: boolean;
   absencesCount?: number;
+  email?: string;
   tags: string[];
   tuition?: Record<string, { method: 'cash' | 'transfer', date: string }>;
   tuitionNote?: string;

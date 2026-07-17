@@ -155,7 +155,7 @@ export function Schedule({ userRole }: { userRole: UserRole }) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 ">
       <div className="bg-white p-6 rounded-2xl border border-indigo-100/60 shadow-[0_8px_30px_rgb(79,70,229,0.04)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 ring-1 ring-indigo-100/50">
