@@ -1466,13 +1466,13 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
                   <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r border-slate-100/60 sticky left-0 bg-white z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-48">Họ và tên</th>
                   {selectedClass === 'all' && (
                     <>
-                      <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r border-slate-100/60 sticky left-[192px] bg-white z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-28 text-center">Ngày sinh</th>
-                      <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r border-slate-100/60 sticky left-[304px] bg-white z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-24 text-center">Lớp</th>
-                      <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r-2 border-slate-100/60 sticky left-[400px] bg-white z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-48 text-left">Ghi chú</th>
+                      <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r border-slate-100/60 md:sticky md:left-[192px] bg-white md:z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-28 text-center">Ngày sinh</th>
+                      <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r border-slate-100/60 md:sticky md:left-[304px] bg-white md:z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-24 text-center">Lớp</th>
+                      <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r-2 border-slate-100/60 md:sticky md:left-[400px] bg-white md:z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-48 text-left">Ghi chú</th>
                     </>
                   )}
                   {selectedClass !== 'all' && (
-                    <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r-2 border-slate-100/60 sticky left-[192px] bg-white z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-48 text-left">Ghi chú</th>
+                    <th rowSpan={2} className="px-4 py-3 text-xs uppercase text-slate-500 font-bold border-r-2 border-slate-100/60 md:sticky md:left-[192px] bg-white md:z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)] w-48 text-left">Ghi chú</th>
                   )}
                   {months.map((m, i) => (
                     <th colSpan={2} key={m} className={`px-2 py-2 text-xs uppercase text-slate-600 font-bold text-center border-b border-slate-100/60 ${i % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'} border-r-2 border-slate-100/60`}>{m}</th>
@@ -1510,9 +1510,9 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
                     </td>
                     {selectedClass === 'all' && (
                       <>
-                        <td className={`px-4 py-3 text-xs font-mono text-slate-500 border-r border-slate-200 sticky left-[192px] z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-center ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>{formatDob(student.dob)}</td>
-                        <td className={`px-4 py-3 text-sm font-medium text-slate-600 border-r border-slate-200 sticky left-[304px] z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-center ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>{student.classRoom}</td>
-                        <td className={`px-4 py-3 text-sm text-slate-600 border-r-2 border-slate-200 sticky left-[400px] z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>
+                        <td className={`px-4 py-3 text-xs font-mono text-slate-500 border-r border-slate-200 md:sticky md:left-[192px] md:z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-center ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>{formatDob(student.dob)}</td>
+                        <td className={`px-4 py-3 text-sm font-medium text-slate-600 border-r border-slate-200 md:sticky md:left-[304px] md:z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-center ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>{student.classRoom}</td>
+                        <td className={`px-4 py-3 text-sm text-slate-600 border-r-2 border-slate-200 md:sticky md:left-[400px] md:z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>
                           <input
                             type="text"
                             placeholder="Nhập ghi chú..."
@@ -1525,7 +1525,7 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
                       </>
                     )}
                     {selectedClass !== 'all' && (
-                      <td className={`px-4 py-3 text-sm text-slate-600 border-r-2 border-slate-200 sticky left-[192px] z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>
+                      <td className={`px-4 py-3 text-sm text-slate-600 border-r-2 border-slate-200 md:sticky md:left-[192px] md:z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>
                         <input
                           type="text"
                           placeholder="Nhập ghi chú..."
@@ -1791,8 +1791,8 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
           <table className="w-full text-left border-collapse min-w-max">
             <thead className="bg-white border-b border-slate-100/60">
               <tr className="text-xs uppercase text-slate-500 font-bold tracking-wide">
-                <th className="px-6 py-4 w-16 border-r border-slate-100/60 sticky left-0 bg-white z-10">ID</th>
-                <th className="px-6 py-4 border-r-2 border-slate-100/60 sticky left-[64px] bg-white z-10 w-48">Họ và tên</th>
+                <th className="px-6 py-4 w-16 border-r border-slate-100/60 md:sticky md:left-0 bg-white md:z-10">ID</th>
+                <th className="px-6 py-4 border-r-2 border-slate-100/60 sticky left-0 md:left-[64px] bg-white z-10 w-48">Họ và tên</th>
                 {tests.map(test => (
                   <th key={test} className="px-4 py-4 text-center border-r border-slate-100/60 relative group min-w-[120px]">
                     <div className="flex items-center justify-center gap-2">
@@ -1806,8 +1806,8 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
                   </th>
                 ))}
                 {tests.length === 0 && <th className="px-6 py-4 text-slate-400 font-medium">Chưa có bài kiểm tra nào</th>}
-                <th className="px-6 py-4 text-center font-bold text-indigo-700 w-32 border-l-2 border-slate-100/60 sticky right-[96px] bg-indigo-50/90 backdrop-blur z-10">Trung bình</th>
-                <th className="px-4 py-4 text-center font-bold text-slate-700 w-24 sticky right-0 bg-slate-50/90 backdrop-blur z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">Xếp hạng</th>
+                <th className="px-6 py-4 text-center font-bold text-indigo-700 w-32 border-l-2 border-slate-100/60 md:sticky md:right-[96px] bg-indigo-50/90 backdrop-blur z-10">Trung bình</th>
+                <th className="px-4 py-4 text-center font-bold text-slate-700 w-24 md:sticky md:right-0 bg-slate-50/90 backdrop-blur z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)]">Xếp hạng</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -1832,8 +1832,8 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
 
                 return (
                   <tr key={student.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4 text-xs font-mono text-slate-400/80 border-r border-slate-100/60 sticky left-0 bg-white group-hover:bg-slate-50/80 z-10">{student.id}</td>
-                    <td className={`px-6 py-4 font-bold border-r-2 border-slate-100/60 sticky left-[64px] z-10 ${isBelowAvg ? 'bg-red-50 text-red-700 group-hover:bg-red-100/80' : 'bg-white text-slate-700 group-hover:bg-slate-50/80'}`}>
+                    <td className="px-6 py-4 text-xs font-mono text-slate-400/80 border-r border-slate-100/60 md:sticky md:left-0 bg-white group-hover:bg-slate-50/80 md:z-10">{student.id}</td>
+                    <td className={`px-6 py-4 font-bold border-r-2 border-slate-100/60 sticky left-0 md:left-[64px] z-10 ${isBelowAvg ? 'bg-red-50 text-red-700 group-hover:bg-red-100/80' : 'bg-white text-slate-700 group-hover:bg-slate-50/80'}`}>
                       <div className="flex items-center gap-2">
                         {student.name}
                         {student.absencesCount && student.absencesCount > 3 ? (
@@ -1856,10 +1856,10 @@ function Grades({ userRole, students, setStudents, selectedClass, searchQuery, c
                       </td>
                     ))}
                     {tests.length === 0 && <td></td>}
-                    <td className={`px-6 py-4 text-center font-bold sticky right-[96px] z-10 border-l-2 border-slate-100/60 ${isBelowAvg ? 'bg-red-50/90 text-red-700 backdrop-blur' : 'bg-indigo-50/90 text-indigo-700 backdrop-blur'}`}>
+                    <td className={`px-6 py-4 text-center font-bold md:sticky md:right-[96px] z-10 border-l-2 border-slate-100/60 ${isBelowAvg ? 'bg-red-50/90 text-red-700 backdrop-blur' : 'bg-indigo-50/90 text-indigo-700 backdrop-blur'}`}>
                       {avg !== -1 ? avg.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9])0$/, '$1') : '-'}
                     </td>
-                    <td className={`px-4 py-4 text-center font-bold sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] ${isBelowAvg ? 'bg-red-50/90 text-red-700 backdrop-blur' : 'bg-slate-50/90 text-slate-700 backdrop-blur'}`}>
+                    <td className={`px-4 py-4 text-center font-bold md:sticky md:right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] ${isBelowAvg ? 'bg-red-50/90 text-red-700 backdrop-blur' : 'bg-slate-50/90 text-slate-700 backdrop-blur'}`}>
                       {ranks[student.id] ? `#${ranks[student.id]}` : '-'}
                     </td>
                   </tr>
