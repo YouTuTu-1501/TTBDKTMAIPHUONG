@@ -39,6 +39,8 @@ export default function App() {
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [newAccError, setNewAccError] = useState('');
   const [newAccSuccess, setNewAccSuccess] = useState('');
+  const [accCreationMode, setAccCreationMode] = useState<'single' | 'bulk'>('single');
+  const [bulkAccData, setBulkAccData] = useState('');
   
 
 
@@ -146,6 +148,90 @@ export default function App() {
     } finally {
       setCreatingAccount(false);
     }
+  };
+
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+        
+        const rows = json.filter(row => row.length >= 2);
+        const hasHeader = rows.length > 0 && String(rows[0][0]).toLowerCase().includes('email');
+        const dataRows = hasHeader ? rows.slice(1) : rows;
+
+        const csvData = dataRows.map(row => `${row[0] || ''},${row[1] || ''},${row[2] || 'student'}`).join('\n');
+        setBulkAccData(prev => (prev ? prev + '\n' + csvData : csvData));
+      } catch (err) {
+        console.error("Error parsing excel", err);
+        setNewAccError("Lỗi khi đọc file Excel.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
+  const handleDownloadSample = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Email', 'Mật khẩu', 'Phân quyền (student/teacher/admin)'],
+      ['hocsinh1@example.com', '123456', 'student'],
+      ['giaovien1@example.com', '123456', 'teacher']
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sample');
+    XLSX.writeFile(wb, 'Mau_Tao_Tai_Khoan.xlsx');
+  };
+
+  const handleBulkCreateAccount = async () => {
+    if (!bulkAccData.trim()) return;
+    setCreatingAccount(true);
+    setNewAccError('');
+    setNewAccSuccess('');
+    
+    const lines = bulkAccData.split('\n').filter(l => l.trim());
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const line of lines) {
+      const parts = line.split(/[,\t]/).map(p => p.trim());
+      if (parts.length >= 2) {
+        const email = parts[0];
+        const password = parts[1];
+        const role = (parts[2] || 'student') as UserRole;
+        try {
+          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            email: email,
+            role: role,
+            createdAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (err: any) {
+          console.error('Error creating', email, err);
+          failCount++;
+        }
+      }
+    }
+    
+    if (failCount > 0) {
+      setNewAccError(`Tạo thành công ${successCount}, thất bại ${failCount}.`);
+    } else {
+      setNewAccSuccess(`Tạo thành công ${successCount} tài khoản!`);
+      setBulkAccData('');
+      setTimeout(() => {
+        setShowAddAccountModal(false);
+        setNewAccSuccess('');
+      }, 2000);
+    }
+    setCreatingAccount(false);
   };
 
   React.useEffect(() => {
@@ -491,33 +577,75 @@ export default function App() {
               </div>
               <p className="text-slate-500 text-sm mb-4">Nhập thông tin tài khoản mới vào hệ thống.</p>
               
+              <div className="flex gap-2 border-b border-slate-200 mb-4 pb-2">
+                <button onClick={() => setAccCreationMode('single')} className={`px-3 py-1 text-sm font-semibold rounded-md ${accCreationMode === 'single' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500'}`}>Tạo đơn lẻ</button>
+                <button onClick={() => setAccCreationMode('bulk')} className={`px-3 py-1 text-sm font-semibold rounded-md ${accCreationMode === 'bulk' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500'}`}>Tạo đồng loạt</button>
+              </div>
+              
               {newAccError && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">{newAccError}</div>}
               {newAccSuccess && <div className="mb-4 p-3 bg-emerald-50 text-emerald-600 rounded-xl text-sm border border-emerald-100">{newAccSuccess}</div>}
               
               <div className="space-y-4 text-left">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                  <input type="email" value={newAccEmail} onChange={(e) => setNewAccEmail(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="VD: gv_anh@school.edu.vn" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
-                  <input type="password" value={newAccPassword} onChange={(e) => setNewAccPassword(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="********" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phân quyền</label>
-                  <select value={newAccRole} onChange={(e) => setNewAccRole(e.target.value as UserRole)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
-                    <option value="teacher">Giáo viên</option>
-                    <option value="student">Học viên</option>
-                    <option value="admin">Quản trị viên (Admin)</option>
-                  </select>
-                </div>
-                <button 
-                  onClick={handleCreateAccount}
-                  disabled={creatingAccount}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition-all disabled:opacity-70 mt-4"
-                >
-                  {creatingAccount ? 'Đang tạo...' : 'Tạo tài khoản'}
-                </button>
+                {accCreationMode === 'single' ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                      <input type="email" value={newAccEmail} onChange={(e) => setNewAccEmail(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="VD: gv_anh@school.edu.vn" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
+                      <input type="password" value={newAccPassword} onChange={(e) => setNewAccPassword(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="********" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Phân quyền</label>
+                      <select value={newAccRole} onChange={(e) => setNewAccRole(e.target.value as UserRole)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
+                        <option value="teacher">Giáo viên</option>
+                        <option value="student">Học viên</option>
+                        <option value="admin">Quản trị viên (Admin)</option>
+                      </select>
+                    </div>
+                    <button 
+                      onClick={handleCreateAccount}
+                      disabled={creatingAccount}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition-all disabled:opacity-70 mt-4"
+                    >
+                      {creatingAccount ? 'Đang tạo...' : 'Tạo tài khoản'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Dữ liệu tạo tài khoản (Mỗi dòng 1 tài khoản)</label>
+                      <p className="text-xs text-slate-500 mb-2">Định dạng: Email,Mật khẩu,Quyền (VD: <b>a@g.com,123456,student</b>). Quyền mặc định là student.</p>
+                      <div className="flex gap-2 mb-2">
+                        <button onClick={handleDownloadSample} className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-semibold rounded-lg border border-green-200 hover:bg-green-100 transition-colors flex items-center gap-1.5">
+                          <Download className="w-3.5 h-3.5" />
+                          Tải file mẫu
+                        </button>
+                        <label className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1.5 cursor-pointer">
+                          <Upload className="w-3.5 h-3.5" />
+                          Nhập từ Excel
+                          <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleExcelUpload} />
+                        </label>
+                      </div>
+                      <textarea 
+                        value={bulkAccData} 
+                        onChange={(e) => setBulkAccData(e.target.value)} 
+                        rows={5}
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-mono text-sm" 
+                        placeholder="a@gmail.com,pass123,student
+b@gmail.com,pass456,teacher" 
+                      />
+                    </div>
+                    <button 
+                      onClick={handleBulkCreateAccount}
+                      disabled={creatingAccount || !bulkAccData.trim()}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition-all disabled:opacity-70 mt-4"
+                    >
+                      {creatingAccount ? 'Đang tạo...' : 'Tạo đồng loạt'}
+                    </button>
+                  </>
+                )}
 
               <div className="mt-8 border-t border-slate-100 pt-6">
                 <h4 className="font-bold text-slate-800 mb-4">Danh sách tài khoản</h4>
