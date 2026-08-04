@@ -11,7 +11,9 @@ interface DaySchedule {
   evening: string[];
 }
 
-const initialScheduleData: DaySchedule[] = [
+export type { DaySchedule };
+
+export const initialScheduleData: DaySchedule[] = [
   {
     day: 'Thứ 2',
     morning: ['07h00: Lớp 6', '09h00: Lớp 12'],
@@ -65,9 +67,32 @@ const getSessionClass = (session: string) => {
   return 'bg-slate-100 text-slate-700';
 };
 
-export function Schedule({ userRole }: { userRole: UserRole }) {
+export function Schedule({
+  userRole,
+  scheduleData: propScheduleData,
+  setScheduleData: propSetScheduleData
+}: {
+  userRole: UserRole;
+  scheduleData?: DaySchedule[];
+  setScheduleData?: React.Dispatch<React.SetStateAction<DaySchedule[]>>;
+}) {
   const [isEditing, setIsEditing] = useState(false);
-  const [scheduleData, setScheduleData] = useState<DaySchedule[]>(initialScheduleData);
+  const [localScheduleData, setLocalScheduleData] = useState<DaySchedule[]>(() => {
+    try {
+      const saved = localStorage.getItem('scheduleData');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return initialScheduleData;
+  });
+
+  const scheduleData = propScheduleData ?? localScheduleData;
+  const setScheduleData = propSetScheduleData ?? setLocalScheduleData;
+
   const [newSessionInput, setNewSessionInput] = useState<{ dayIndex: number; period: Period; value: string } | null>(null);
 
   const canEdit = userRole === 'admin' || userRole === 'teacher';
@@ -77,16 +102,43 @@ export function Schedule({ userRole }: { userRole: UserRole }) {
       setNewSessionInput(null);
       return;
     }
-    const updated = [...scheduleData];
-    updated[dayIndex][period].push(newSessionInput.value.trim());
+    const val = newSessionInput.value.trim();
+    const updated = scheduleData.map((item, idx) => {
+      if (idx === dayIndex) {
+        return {
+          ...item,
+          [period]: [...item[period], val]
+        };
+      }
+      return item;
+    });
     setScheduleData(updated);
+    try {
+      localStorage.setItem('scheduleData', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
     setNewSessionInput(null);
   };
 
   const handleRemoveSession = (dayIndex: number, period: Period, sessionIndex: number) => {
-    const updated = [...scheduleData];
-    updated[dayIndex][period].splice(sessionIndex, 1);
+    const updated = scheduleData.map((item, idx) => {
+      if (idx === dayIndex) {
+        const newArr = [...item[period]];
+        newArr.splice(sessionIndex, 1);
+        return {
+          ...item,
+          [period]: newArr
+        };
+      }
+      return item;
+    });
     setScheduleData(updated);
+    try {
+      localStorage.setItem('scheduleData', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const renderCellContent = (dayIndex: number, period: Period) => {

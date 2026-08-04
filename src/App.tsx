@@ -8,7 +8,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth, secondaryAuth } from './lib/firebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 import Login from './components/Login';
-import { Schedule } from './components/Schedule';
+import { Schedule, DaySchedule, initialScheduleData } from './components/Schedule';
 
 const formatDob = (dob: string) => {
   if (!dob) return '---';
@@ -52,6 +52,18 @@ export default function App() {
   const [showAddAccountModal, setShowAddAccountModal] = useState<boolean>(false);
   const [classTests, setClassTests] = useState<Record<string, string[]>>({});
   const [lastAttendanceReset, setLastAttendanceReset] = useState<string>('');
+  const [scheduleData, setScheduleData] = useState<DaySchedule[]>(() => {
+    try {
+      const saved = localStorage.getItem('scheduleData');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return initialScheduleData;
+  });
   
   // Trạng thái lưu trữ danh sách học sinh
   const [students, setStudents] = useState<Student[]>([]);
@@ -255,6 +267,12 @@ export default function App() {
             setClassTests(normalizedClassTests);
           }
           if (data.lastAttendanceReset) setLastAttendanceReset(data.lastAttendanceReset);
+          if (data.scheduleData && Array.isArray(data.scheduleData) && data.scheduleData.length > 0) {
+            setScheduleData(data.scheduleData);
+            try {
+              localStorage.setItem('scheduleData', JSON.stringify(data.scheduleData));
+            } catch (e) {}
+          }
         }
       } catch (err) {
         console.error('Error fetching data from Firebase', err);
@@ -268,12 +286,15 @@ export default function App() {
   React.useEffect(() => {
     if (isFirebaseLoaded) {
       // Dùng JSON.parse(JSON.stringify()) để loại bỏ các giá trị undefined, tránh lỗi Firebase
-      const dataToSave = JSON.parse(JSON.stringify({ students, classTests, lastAttendanceReset }));
+      const dataToSave = JSON.parse(JSON.stringify({ students, classTests, lastAttendanceReset, scheduleData }));
       setDoc(doc(db, 'appData', 'main'), dataToSave).catch(err => {
         console.error('Error saving data to Firebase', err);
       });
+      try {
+        localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+      } catch (e) {}
     }
-  }, [students, classTests, lastAttendanceReset, isFirebaseLoaded]);
+  }, [students, classTests, lastAttendanceReset, scheduleData, isFirebaseLoaded]);
 
   React.useEffect(() => {
     if (!isFirebaseLoaded) return;
@@ -517,7 +538,7 @@ export default function App() {
                 {activeTab === 'attendance' && <Attendance userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
                 {activeTab === 'academics' && <Academics userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} sendSimulatedEmail={sendSimulatedEmail} />}
                 {activeTab === 'grades' && <Grades userRole={userRole} students={filteredStudentsBySubject} setStudents={setStudents} selectedClass={selectedClassFilter} searchQuery={searchQuery} classTests={classTests} setClassTests={setClassTests} />}
-                {activeTab === 'schedule' && <Schedule userRole={userRole} />}
+                {activeTab === 'schedule' && <Schedule userRole={userRole} scheduleData={scheduleData} setScheduleData={setScheduleData} />}
               </motion.div>
             </AnimatePresence>
           </div>
