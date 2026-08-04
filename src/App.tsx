@@ -1858,18 +1858,7 @@ function Academics({ userRole, students, setStudents, selectedClass, searchQuery
                         className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm placeholder:text-slate-400 disabled:bg-transparent disabled:text-slate-500"
                       />
                     </td>
-                    {selectedClass !== 'all' && (
-                      <td className={`px-4 py-3 text-sm text-slate-600 border-r-2 border-slate-200 md:sticky md:left-[192px] md:z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)] ${isCurrentMonthUnpaid ? 'bg-amber-50 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'}`}>
-                        <input
-                          type="text"
-                          placeholder="Nhập ghi chú..."
-                          value={student.tuitionNote || ''}
-                          onChange={(e) => handleUpdateNote(student.id, e.target.value)}
-                          disabled={userRole === 'student'}
-                          className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm placeholder:text-slate-400 disabled:bg-transparent disabled:text-slate-500"
-                        />
-                      </td>
-                    )}
+
                     {months.map((m, i) => {
                       const tuitionData = student.tuition?.[m];
                       const isCash = tuitionData?.method === 'cash';
